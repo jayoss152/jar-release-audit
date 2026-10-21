@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -49,10 +51,15 @@ public final class JarScanner {
         if (Files.size(archive) > limits.maxArchiveBytes()) throw new IOException("Archive exceeds input size limit");
         State state = new State();
         try (ZipFile zip = new ZipFile(archive.toFile(), StandardCharsets.UTF_8)) {
+            Set<String> names = new HashSet<>();
             var entries = zip.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
                 if (!state.count(entry.getName())) break;
+                if (!names.add(canonicalName(entry.getName()))) {
+                    state.issue(entry.getName(), "Duplicate or ambiguous archive entry name; contents are not trustworthy.");
+                    continue;
+                }
                 try (InputStream in = zip.getInputStream(entry)) {
                     byte[] content = state.read(in);
                     CRC32 crc = new CRC32();
@@ -103,12 +110,14 @@ public final class JarScanner {
             // ZipInputStream alone accepts arbitrary non-ZIP input as an empty archive.
             int expectedEntries = validateNestedZip(bytes);
             try (ZipInputStream nested = new ZipInputStream(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
+                Set<String> names = new HashSet<>();
                 ZipEntry entry;
                 int seen = 0;
                 while ((entry = nested.getNextEntry()) != null) {
                     seen++;
                     String child = name + "!/" + entry.getName();
                     if (!state.count(child)) return;
+                    if (!names.add(canonicalName(entry.getName()))) throw new IOException("Ambiguous nested entry name");
                     if (!entry.isDirectory()) {
                         try {
                             inspect(child, state.read(nested), depth + 1, state);
@@ -165,6 +174,12 @@ public final class JarScanner {
 
     private static int u16(byte[] b, int p) { return (b[p] & 255) | ((b[p + 1] & 255) << 8); }
     private static long u32(byte[] b, int p) { return (long) u16(b, p) | ((long) u16(b, p + 2) << 16); }
+
+    private static String canonicalName(String name) {
+        String normalized = name.replace('\\', '/');
+        while (normalized.startsWith("./")) normalized = normalized.substring(2);
+        return normalized; // Deliberately case-sensitive, like Java resource lookup.
+    }
 
     private static boolean literalValue(String raw) {
         String value = raw.strip().replaceFirst("[,;]$", "").strip();

@@ -57,6 +57,10 @@ OS/container memory and time limits for untrusted inputs. Do not run as administ
 
 ## Deliberate gaps
 
+Duplicate names, slash/backslash aliases and leading `./` aliases within an
+archive make the scan incomplete because consumers can disagree about which
+entry is selected. Names remain case-sensitive. No archive paths are extracted.
+
 No dataflow/entropy analysis, encrypted or encoded secret detection, arbitrary
 binary/class constant scanning, multiline or fully parsed JSON/YAML/XML secret
 analysis, certificate validity checks, dependency vulnerability scanning, license

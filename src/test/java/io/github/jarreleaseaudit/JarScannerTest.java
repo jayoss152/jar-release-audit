@@ -121,6 +121,25 @@ class JarScannerTest {
         assertFalse(report.complete());
     }
 
+    @Test void duplicateNamesAreIncompleteAtEveryArchiveLevel() throws Exception {
+        byte[] duplicate = zip(Map.of("a.txt", bytes("same"), "b.txt", bytes("same")));
+        for (int p = 0; p + 5 <= duplicate.length; p++) {
+            if (duplicate[p] == 'b' && duplicate[p + 1] == '.' && duplicate[p + 2] == 't'
+                    && duplicate[p + 3] == 'x' && duplicate[p + 4] == 't') duplicate[p] = 'a';
+        }
+        Path outer = temp.resolve("duplicate.jar");
+        Files.write(outer, duplicate);
+        assertFalse(new JarScanner().scan(outer).complete());
+        assertFalse(new JarScanner().scan(archive(Map.of("nested.jar", duplicate))).complete());
+    }
+
+    @Test void slashAliasesAreAmbiguousButCaseDistinctResourcesAreAllowed() throws Exception {
+        assertFalse(new JarScanner().scan(archive(Map.of("app/x.txt", bytes("same"),
+                "app\\x.txt", bytes("same")))).complete());
+        assertTrue(new JarScanner().scan(archive(Map.of("A.txt", bytes("same"),
+                "a.txt", bytes("same")))).complete());
+    }
+
     @Test void depthLimitIsIncomplete() throws Exception {
         var scanner = new JarScanner(new JarScanner.Limits(10000, 10000, 10000, 100, 0));
         Report r = scanner.scan(archive(Map.of("nested.jar", zip(Map.of()))));
