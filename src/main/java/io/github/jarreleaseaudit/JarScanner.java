@@ -101,12 +101,14 @@ public final class JarScanner {
                 return;
             }
             // ZipInputStream alone accepts arbitrary non-ZIP input as an empty archive.
-            validateNestedZip(bytes);
+            int expectedEntries = validateNestedZip(bytes);
             try (ZipInputStream nested = new ZipInputStream(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
                 ZipEntry entry;
+                int seen = 0;
                 while ((entry = nested.getNextEntry()) != null) {
+                    seen++;
                     String child = name + "!/" + entry.getName();
-                    if (!state.count(child)) break;
+                    if (!state.count(child)) return;
                     if (!entry.isDirectory()) {
                         try {
                             inspect(child, state.read(nested), depth + 1, state);
@@ -117,11 +119,12 @@ public final class JarScanner {
                     } else state.read(nested); // Even directory payloads must consume the expansion budget.
                     nested.closeEntry();
                 }
+                if (seen != expectedEntries) throw new IOException("Nested directory entry count mismatch");
             }
         }
     }
 
-    private static void validateNestedZip(byte[] b) throws IOException {
+    private static int validateNestedZip(byte[] b) throws IOException {
         // Require an end record and a bounded, consistent central directory. ZIP64 and
         // split nested archives are deliberately unsupported and yield INCOMPLETE.
         for (int end = b.length - 22; end >= Math.max(0, b.length - 65_557); end--) {
@@ -135,10 +138,27 @@ public final class JarScanner {
             for (int i = 0; i < count; i++) {
                 if (cursor + 46 > end || u32(b, (int) cursor) != 0x02014b50L) throw new IOException("Invalid central directory");
                 int p = (int) cursor;
-                cursor += 46L + u16(b, p + 28) + u16(b, p + 30) + u16(b, p + 32);
+                int nameLength = u16(b, p + 28);
+                long next = cursor + 46L + nameLength + u16(b, p + 30) + u16(b, p + 32);
+                long local = u32(b, p + 42), compressed = u32(b, p + 20);
+                if (next > end || u16(b, p + 34) != 0 || local + 30 > offset
+                        || u32(b, (int) local) != 0x04034b50L)
+                    throw new IOException("Invalid local header reference");
+                int h = (int) local, flags = u16(b, p + 8);
+                if ((flags & 1) != 0 || u16(b, h + 6) != flags || u16(b, h + 8) != u16(b, p + 10)
+                        || u16(b, h + 26) != nameLength
+                        || local + 30L + nameLength + u16(b, h + 28) + compressed > offset)
+                    throw new IOException("Inconsistent nested entry header");
+                if (java.util.Arrays.mismatch(b, p + 46, p + 46 + nameLength,
+                        b, h + 30, h + 30 + nameLength) != -1)
+                    throw new IOException("Inconsistent nested entry name");
+                if ((flags & 8) == 0 && (u32(b, h + 14) != u32(b, p + 16)
+                        || u32(b, h + 18) != compressed || u32(b, h + 22) != u32(b, p + 24)))
+                    throw new IOException("Inconsistent nested entry sizes or checksum");
+                cursor = next;
             }
             if (cursor != end || (count > 0 && u32(b, 0) != 0x04034b50L)) break;
-            return;
+            return count;
         }
         throw new IOException("Invalid or unsupported nested ZIP");
     }

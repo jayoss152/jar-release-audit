@@ -43,7 +43,10 @@ incomplete report and exit 2 even with `--fail-on none`. An unreadable/invalid o
 ZIP produces exit 2 and a generic stderr error without a report.
 
 Nested ZIP64, split archives and self-extracting/prefixed nested ZIPs are unsupported.
-Nested archives require a consistent end record and central-directory structure;
+Nested archives require a consistent end record, central-directory structure,
+local-header names, flags, methods, offsets and declared sizes/checksums. The
+streamed entry count must match the central directory. Encrypted nested entries
+are unsupported and produce an incomplete result;
 the streaming reader checks entry payloads. This is not a forensic ZIP validator,
 nor a cryptographic signature verifier. Outer entry expanded size and CRC-32 are
 checked against the central directory, including directory payloads; mismatches

@@ -109,6 +109,18 @@ class JarScannerTest {
         assertEquals(2, cli("--fail-on", "none", jar.toString()));
     }
 
+    @Test void inconsistentNestedCentralAndLocalNamesAreIncomplete() throws Exception {
+        byte[] nested = zip(Map.of("secret.txt", bytes("password=fake-value")));
+        for (int p = 0; p + 46 < nested.length; p++) {
+            if (nested[p] == 'P' && nested[p + 1] == 'K' && nested[p + 2] == 1 && nested[p + 3] == 2) {
+                nested[p + 46] = 'x';
+                break;
+            }
+        }
+        Report report = new JarScanner().scan(archive(Map.of("lib.jar", nested)));
+        assertFalse(report.complete());
+    }
+
     @Test void depthLimitIsIncomplete() throws Exception {
         var scanner = new JarScanner(new JarScanner.Limits(10000, 10000, 10000, 100, 0));
         Report r = scanner.scan(archive(Map.of("nested.jar", zip(Map.of()))));
