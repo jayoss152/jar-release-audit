@@ -1,0 +1,103 @@
+# JAR Release Audit
+
+An offline Java 17 CLI that checks release JARs for accidental information exposure:
+packaged sources, debug metadata, potential credential files and literal config
+secrets. Zero runtime dependencies. MIT licensed.
+
+面向 Java / Spring Boot 发布流程的离线检查工具：减少源码、调试信息及敏感配置误打包。
+**不承诺防止反编译。** 混淆只能提高部分分析成本，不能保护发布包中的真实秘密。
+
+**Status:** new 0.1.0 MVP, intended for evaluation and contribution. No adoption,
+production use, maintenance history or independent security review is claimed.
+
+## Build and use
+
+Requires a JDK 17+ and Maven 3.9+. The first Maven build needs dependency access;
+the packaged scanner runs offline.
+
+```sh
+mvn -B verify
+java -jar target/jar-release-audit-0.1.0.jar path/to/release.jar
+java -jar target/jar-release-audit-0.1.0.jar --format json --fail-on high path/to/release.jar
+```
+
+The default failure threshold is `medium`. Findings at or above the selected level
+cause exit 1. `--fail-on low|medium|high|none` changes that threshold; `none` still
+returns exit 2 on incomplete scans. `--help` and `--version` are available.
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | Complete scan; nothing meets the failure threshold |
+| 1 | Complete scan; one or more findings meet the threshold |
+| 2 | Invalid command/input, malformed inspected content, or incomplete scan due to limits |
+
+JSON reports have `schemaVersion`, `complete`, `entriesScanned`, `findings` and
+`issues`. Findings have `severity`, `rule`, `entry` and `message`; issues have
+`entry` and `message`. Output ordering is deterministic for the same entries.
+Input/argument errors go to stderr and do not produce a JSON report. Consumers
+must check the process exit code as well as `complete`.
+
+## Rules
+
+| Rule | Severity | Review action |
+| --- | --- | --- |
+| `SOURCE_FILE` | MEDIUM | Exclude source resources from executable releases unless intentional |
+| `DEBUG_METADATA` | LOW | Review source, line, local-variable and method-parameter metadata versus diagnostics/framework needs |
+| `SENSITIVE_FILE` | HIGH | Review `.env`, private key and keystore filenames |
+| `SECRET_ASSIGNMENT` | HIGH | Externalize literal credential-like assignments; values are redacted |
+| `PRIVATE_KEY` | HIGH | Remove PEM private key material and rotate any real exposed credential |
+
+Checks are heuristics. A public certificate, demo credential or deliberately
+published source can be intentional; there is no blanket automatic remediation.
+See the [threat model and limits](docs/THREAT_MODEL.md) before using this as a CI gate.
+
+## Reproducible synthetic demo
+
+From the repository root, on Windows, Linux or macOS:
+
+```sh
+java examples/demo/Demo.java
+java -cp examples/demo/target/leaky.jar Hello
+java -cp examples/demo/target/hardened.jar Hello
+java -jar target/jar-release-audit-0.1.0.jar examples/demo/target/leaky.jar
+java -jar target/jar-release-audit-0.1.0.jar --fail-on low examples/demo/target/hardened.jar
+```
+
+Both application runs print `hello release`. The leaky audit returns **1** with
+`SOURCE_FILE`, `DEBUG_METADATA` and `SECRET_ASSIGNMENT`. The hardened audit returns
+**0**, with zero findings. The demo removes the source resource, compiles without
+debug metadata, and replaces a fake password with an environment placeholder.
+It does not obfuscate or prove the absence of all secrets. All fixtures are newly
+generated synthetic material. ZIP timestamps are fixed; the same JDK/toolchain
+produces repeatable demo archives (cross-JDK byte identity is not promised).
+
+An optional [ProGuard configuration](examples/proguard-demo.pro) and
+[integration guidance](docs/OBFUSCATION.md) explain the next step. ProGuard is
+installed separately; the optional configuration is not part of default tests.
+
+## Spring Boot
+
+```sh
+java -jar target/jar-release-audit-0.1.0.jar --format json target/my-service.jar
+```
+
+The tool inspects `BOOT-INF/classes` and nested libraries in `BOOT-INF/lib`.
+Metadata from dependencies may produce LOW findings; the default MEDIUM gate
+allows those. Large applications can hit the deliberate resource limits and
+return exit 2. Method parameter names and annotations may be required by Spring,
+Jackson or persistence frameworks; preserve needed metadata and test the final
+application. Do not blindly apply a plain-JAR obfuscation configuration to a Boot
+executable JAR.
+
+## Development
+
+`mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
+archives. Coverage includes metadata parsing versus string literals, externalized
+values, nested Boot libraries, malformed data, budgets, deterministic/redacted
+output and CLI exit policies. CI additionally builds and runs the packaged CLI and
+demo on Windows/Linux with JDK 17/21.
+
+The code is split into class metadata parsing, archive scanning, report records and
+CLI rendering. Contributions should include behavior-focused tests and update
+the rule/limitation documentation. See [CONTRIBUTING.md](CONTRIBUTING.md),
+[SECURITY.md](SECURITY.md) and [LICENSE](LICENSE).

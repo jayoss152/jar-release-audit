@@ -1,0 +1,7 @@
+/target/
+/.idea/
+/.vscode/
+*.iml
+*.log
+/examples/demo/target/
+/examples/demo/mapping.txt
