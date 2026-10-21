@@ -26,9 +26,11 @@ potentially confidential because names can themselves contain private informatio
   `.p12`, `.pfx`, `.jks` and `.keystore`. Some are intentional public/demo resources.
 * UTF-8 text resources with properties/YAML-like credential assignments and PEM
   private-key markers. Rules are intentionally heuristic; a finding is a review
-  request, not proof of a usable secret. `${...}` / `#{...}` placeholders, empty,
-  `null` and `~` values are excluded. Placeholder defaults may still hold secrets
-  and require manual review.
+  request, not proof of a usable secret. Whole `${NAME}` references (or empty
+  `${NAME:}` fallbacks), empty values and unquoted `null` / `~` are excluded.
+  Nonempty placeholder defaults, concatenated references, malformed references
+  and arbitrary `#{...}` expressions require review and are reported. Nested
+  external fallback expressions can therefore produce conservative false positives.
 * Nested `.jar` and `.zip` entries, including `BOOT-INF/lib`, up to depth 2. Depth
   zero is the input archive. `BOOT-INF/classes` is inspected like any other path.
 

@@ -183,10 +183,14 @@ public final class JarScanner {
 
     private static boolean literalValue(String raw) {
         String value = raw.strip().replaceFirst("[,;]$", "").strip();
-        if (value.length() >= 2 && ((value.startsWith("\"") && value.endsWith("\""))
-                || (value.startsWith("'") && value.endsWith("'")))) value = value.substring(1, value.length() - 1).strip();
-        return !value.isEmpty() && !value.startsWith("${") && !value.startsWith("#{")
-                && !value.startsWith("#") && !value.equals("null") && !value.equals("~");
+        boolean quoted = value.length() >= 2 && ((value.startsWith("\"") && value.endsWith("\""))
+                || (value.startsWith("'") && value.endsWith("'")));
+        if (quoted) value = value.substring(1, value.length() - 1).strip();
+        if (value.isEmpty() || (value.startsWith("#") && !value.startsWith("#{"))) return false;
+        if (!quoted && (value.equals("null") || value.equals("~"))) return false;
+        // Only a whole reference with no nonempty fallback is known to be external.
+        // Defaults, concatenation and arbitrary SpEL can still disclose literals.
+        return !value.matches("\\$\\{[A-Za-z_][A-Za-z0-9_.-]*:?}");
     }
 
     private final class State {

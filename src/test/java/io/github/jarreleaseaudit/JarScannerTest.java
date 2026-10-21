@@ -43,6 +43,17 @@ class JarScannerTest {
         assertTrue(r.findings().isEmpty());
     }
 
+    @Test void placeholderDefaultsExpressionsAndConcatenationRequireReview() throws Exception {
+        for (String value : new String[] {"${PASSWORD:fake-only}", "\"${PASSWORD:fake-only}\"",
+                "#{'fake-only'}", "${PASSWORD}suffix", "${PASSWORD", "\"null\""}) {
+            Report r = new JarScanner().scan(archive(Map.of("application.properties", bytes("password=" + value))));
+            assertEquals(Set.of("SECRET_ASSIGNMENT"), rules(r), value);
+            assertFalse(Main.json(r).contains("fake-only"));
+        }
+        for (String value : new String[] {"${PASSWORD}", "${PASSWORD:}", "\"${PASSWORD}\""})
+            assertTrue(new JarScanner().scan(archive(Map.of("application.yml", bytes("password: " + value)))).findings().isEmpty());
+    }
+
     @Test void findsMetadataStructurallyAndDistinguishesStrippedClasses() throws Exception {
         byte[] debug = compile("-g", "class Sample { int calc(int arg) { int value = arg + 1; return value; } }");
         var metadata = ClassMetadata.debugAttributes(debug);
