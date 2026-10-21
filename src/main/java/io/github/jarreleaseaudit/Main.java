@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.Locale;
 
 public final class Main {
@@ -11,12 +13,14 @@ public final class Main {
             Usage: java -jar jar-release-audit-0.1.0.jar [options] <release.jar>
               --format text|json                 Default: text
               --fail-on low|medium|high|none      Default: medium
+              --output PATH                      Write a new UTF-8 report file (never overwrite)
               --max-archive-bytes N              Default: 134217728
               --max-entry-bytes N                Default: 8388608
               --max-expanded-bytes N             Default: 67108864
               --max-entries N                    Default: 10000
               --max-depth N                      Default: 2 (allowed: 0..8)
               --help, -h / --version
+              --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
     private Main() { }
@@ -30,13 +34,22 @@ public final class Main {
         boolean json = false;
         String threshold = "medium";
         String input = null;
+        String output = null;
+        boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
         int entryBytes = defaults.maxEntryBytes(), entries = defaults.maxEntries(), depth = defaults.maxNestedDepth();
         JarScanner.Limits limits;
         try {
             for (int i = 0; i < args.length; i++) {
+                if (positional) {
+                    if (input != null) throw new IllegalArgumentException();
+                    input = args[i];
+                    continue;
+                }
                 switch (args[i]) {
+                    case "--" -> positional = true;
+                    case "--output" -> output = args[++i];
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--max-archive-bytes" -> archiveBytes = Long.parseLong(args[++i]);
@@ -72,6 +85,24 @@ public final class Main {
             err.println("Unable to inspect archive: input unavailable, invalid ZIP, or input size limit exceeded.");
             return 2;
         }
+        if (output == null) render(report, json, out);
+        else {
+            try (var stream = Files.newOutputStream(Path.of(output), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+                 PrintStream file = new PrintStream(stream, false, StandardCharsets.UTF_8)) {
+                render(report, json, file);
+                if (file.checkError()) throw new IOException("Report write failed");
+            } catch (IOException | IllegalArgumentException | SecurityException e) {
+                err.println("Unable to write report: use a new file in an existing writable directory. Existing files are never overwritten.");
+                return 2;
+            }
+        }
+        if (!report.complete()) return 2;
+        if (threshold.equals("none")) return 0;
+        Finding.Severity minimum = Finding.Severity.valueOf(threshold.toUpperCase(Locale.ROOT));
+        return report.findings().stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;
+    }
+
+    private static void render(Report report, boolean json, PrintStream out) {
         if (json) out.println(json(report));
         else {
             out.printf("JAR Release Audit: %s; %d entries; %d findings%n",
@@ -81,10 +112,6 @@ public final class Main {
             for (Report.Issue issue : report.issues()) out.printf("[INCOMPLETE] %s - %s%n", quote(issue.entry()), issue.message());
             out.println("Heuristic release hygiene checks; a clean report does not prevent decompilation or prove absence of secrets.");
         }
-        if (!report.complete()) return 2;
-        if (threshold.equals("none")) return 0;
-        Finding.Severity minimum = Finding.Severity.valueOf(threshold.toUpperCase(Locale.ROOT));
-        return report.findings().stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;
     }
 
     static String json(Report report) {

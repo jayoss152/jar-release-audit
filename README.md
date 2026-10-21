@@ -48,6 +48,14 @@ java -jar target/jar-release-audit-0.1.0.jar --max-entry-bytes 16777216 --max-ex
 `--help` lists all defaults. Raising budgets increases resource use; the CLI
 never silently skips oversized entries or changes limits automatically.
 
+Use `--output report.json --format json` to save a UTF-8 report without shell
+encoding differences. The destination must be a **new file** in an existing
+directory; existing files (including the input JAR) are never overwritten. Standard
+output is empty when saving to a file. Incomplete scans still save their report
+and exit 2; an input error creates no report. A write failure exits 2 and may leave
+a partial file, which must not be consumed as a successful scan. Use `--` before
+an input filename starting with `-`.
+
 ## Rules
 
 | Rule | Severity | Review action |

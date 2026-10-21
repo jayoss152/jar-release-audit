@@ -260,6 +260,35 @@ class JarScannerTest {
         assertEquals(2, cli("--max-depth", "-1", jar.toString()));
     }
 
+    @Test void cliWritesNewUtf8ReportsAndPreservesExistingFiles() throws Exception {
+        Path jar = archive(Map.of("\u4e2d\u6587.java", bytes("class Sample {}")));
+        Path output = temp.resolve("report.json");
+        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+        assertEquals(1, Main.run(new String[] {"--format", "json", "--output", output.toString(), jar.toString()},
+                new PrintStream(stdout), System.err));
+        assertEquals("", stdout.toString(StandardCharsets.UTF_8));
+        String report = Files.readString(output);
+        assertTrue(report.contains("\u4e2d\u6587.java"));
+        assertEquals(2, cli("--output", output.toString(), jar.toString()));
+        assertEquals(report, Files.readString(output));
+        byte[] original = Files.readAllBytes(jar);
+        assertEquals(2, cli("--output", jar.toString(), jar.toString()));
+        assertArrayEquals(original, Files.readAllBytes(jar));
+        Path absent = temp.resolve("absent.json");
+        assertEquals(2, cli("--output", absent.toString(), "missing.jar"));
+        assertFalse(Files.exists(absent));
+    }
+
+    @Test void cliPersistsIncompleteReportsAndHonorsEndOfOptions() throws Exception {
+        Path jar = archive(Map.of("broken.class", bytes("broken")));
+        Path output = temp.resolve("incomplete.json");
+        assertEquals(2, cli("--format", "json", "--output", output.toString(), jar.toString()));
+        assertTrue(Files.readString(output).contains("\"complete\":false"));
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        assertEquals(2, Main.run(new String[] {"--", "--help"}, System.out, new PrintStream(err)));
+        assertTrue(err.toString(StandardCharsets.UTF_8).contains("Unable to inspect archive"));
+    }
+
     @Test void cleanJarPassesAndJsonHasSchema() throws Exception {
         Path jar = archive(Map.of("application.properties", bytes("spring.datasource.password=${DB_PASSWORD}")));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
