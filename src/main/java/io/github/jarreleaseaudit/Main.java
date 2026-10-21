@@ -7,7 +7,18 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 public final class Main {
-    private static final String USAGE = "Usage: java -jar jar-release-audit-0.1.0.jar [--format text|json] [--fail-on low|medium|high|none] <release.jar>";
+    private static final String USAGE = """
+            Usage: java -jar jar-release-audit-0.1.0.jar [options] <release.jar>
+              --format text|json                 Default: text
+              --fail-on low|medium|high|none      Default: medium
+              --max-archive-bytes N              Default: 134217728
+              --max-entry-bytes N                Default: 8388608
+              --max-expanded-bytes N             Default: 67108864
+              --max-entries N                    Default: 10000
+              --max-depth N                      Default: 2 (allowed: 0..8)
+              --help, -h / --version
+            Byte limits are positive decimal integers; incomplete scans always exit 2.
+            """;
     private Main() { }
 
     public static void main(String[] args) {
@@ -19,11 +30,20 @@ public final class Main {
         boolean json = false;
         String threshold = "medium";
         String input = null;
+        JarScanner.Limits defaults = JarScanner.Limits.defaults();
+        long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
+        int entryBytes = defaults.maxEntryBytes(), entries = defaults.maxEntries(), depth = defaults.maxNestedDepth();
+        JarScanner.Limits limits;
         try {
             for (int i = 0; i < args.length; i++) {
                 switch (args[i]) {
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
+                    case "--max-archive-bytes" -> archiveBytes = Long.parseLong(args[++i]);
+                    case "--max-entry-bytes" -> entryBytes = Integer.parseInt(args[++i]);
+                    case "--max-expanded-bytes" -> expandedBytes = Long.parseLong(args[++i]);
+                    case "--max-entries" -> entries = Integer.parseInt(args[++i]);
+                    case "--max-depth" -> depth = Integer.parseInt(args[++i]);
                     case "--format" -> {
                         String format = args[++i];
                         if (!format.equals("text") && !format.equals("json")) throw new IllegalArgumentException();
@@ -40,13 +60,14 @@ public final class Main {
                 }
             }
             if (input == null) throw new IllegalArgumentException();
+            limits = new JarScanner.Limits(archiveBytes, entryBytes, expandedBytes, entries, depth);
         } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
             err.println(USAGE);
             return 2;
         }
         Report report;
         try {
-            report = new JarScanner().scan(Path.of(input));
+            report = new JarScanner(limits).scan(Path.of(input));
         } catch (IOException | IllegalArgumentException | SecurityException e) {
             err.println("Unable to inspect archive: input unavailable, invalid ZIP, or input size limit exceeded.");
             return 2;

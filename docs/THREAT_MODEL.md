@@ -42,8 +42,8 @@ potentially confidential because names can themselves contain private informatio
 Defaults: input file at most 128 MiB, each expanded entry at most 8 MiB, total read
 expanded bytes at most 64 MiB, 10,000 entries (directories included), nesting at
 most two levels. Nested archive bytes count once as their parent entry and again
-as their contents. Limits are constructor-configurable for library callers, not
-CLI flags in 0.1.0. A limit, invalid class, or invalid nested archive produces an
+as their contents. Limits are configurable through the library constructor and
+explicit CLI flags documented in `--help`. A limit, invalid class, or invalid nested archive produces an
 incomplete report and exit 2 even with `--fail-on none`. An unreadable/invalid outer
 ZIP produces exit 2 and a generic stderr error without a report.
 

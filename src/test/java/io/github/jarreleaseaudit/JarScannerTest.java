@@ -245,6 +245,21 @@ class JarScannerTest {
         assertEquals(2, cli(invalid.toString()));
     }
 
+    @Test void cliResourceLimitsAreConfigurableAndRejectInvalidValues() throws Exception {
+        Path jar = archive(Map.of("a.txt", bytes("1234567890"), "b.txt", bytes("1234567890")));
+        for (String flag : new String[] {"--max-archive-bytes", "--max-entry-bytes", "--max-expanded-bytes", "--max-entries"}) {
+            assertEquals(2, cli(flag, "1", jar.toString()), flag);
+            assertEquals(2, cli(flag, "0", jar.toString()), flag);
+            assertEquals(2, cli(flag, "invalid", jar.toString()), flag);
+            assertEquals(2, cli(flag, "999999999999999999999", jar.toString()), flag);
+        }
+        assertEquals(0, cli("--max-entry-bytes", "64", "--max-expanded-bytes", "128", jar.toString()));
+        Path nested = archive(Map.of("nested.jar", zip(Map.of())));
+        assertEquals(2, cli("--max-depth", "0", nested.toString()));
+        assertEquals(2, cli("--max-depth", "9", jar.toString()));
+        assertEquals(2, cli("--max-depth", "-1", jar.toString()));
+    }
+
     @Test void cleanJarPassesAndJsonHasSchema() throws Exception {
         Path jar = archive(Map.of("application.properties", bytes("spring.datasource.password=${DB_PASSWORD}")));
         ByteArrayOutputStream out = new ByteArrayOutputStream();

@@ -37,6 +37,17 @@ JSON reports have `schemaVersion`, `complete`, `entriesScanned`, `findings` and
 Input/argument errors go to stderr and do not produce a JSON report. Consumers
 must check the process exit code as well as `complete`.
 
+For larger Spring Boot releases, explicitly adjust resource budgets when needed:
+
+```sh
+java -jar target/jar-release-audit-0.1.0.jar --max-entry-bytes 16777216 --max-expanded-bytes 134217728 target/my-service.jar
+```
+
+`--max-archive-bytes`, `--max-entry-bytes`, `--max-expanded-bytes` and
+`--max-entries` accept positive decimal integers; `--max-depth` accepts 0..8.
+`--help` lists all defaults. Raising budgets increases resource use; the CLI
+never silently skips oversized entries or changes limits automatically.
+
 ## Rules
 
 | Rule | Severity | Review action |
