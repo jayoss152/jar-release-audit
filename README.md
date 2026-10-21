@@ -31,9 +31,12 @@ returns exit 2 on incomplete scans. `--help` and `--version` are available.
 | 1 | Complete scan; one or more findings meet the threshold |
 | 2 | Invalid command/input, malformed inspected content, or incomplete scan due to limits |
 
-JSON reports have `schemaVersion`, `complete`, `entriesScanned`, `findings` and
-`issues`. Findings have `severity`, `rule`, `entry` and `message`; issues have
-`entry` and `message`. Output ordering is deterministic for the same entries.
+JSON reports use **schemaVersion 2**, adding a severity/issue `summary` and stable
+issue `code` values to the original report. Findings have `severity`, `rule`,
+`entry` and `message`; issues have `code`, `entry` and `message`. See the
+[JSON Schema](docs/report.schema.json). Consumers upgrading from version 1 must
+accept version 2 and use codes (e.g. `ENTRY_SIZE_LIMIT`, `INVALID_TEXT`) rather
+than parsing human messages. Output ordering is deterministic for the same entries.
 Input/argument errors go to stderr and do not produce a JSON report. Consumers
 must check the process exit code as well as `complete`.
 

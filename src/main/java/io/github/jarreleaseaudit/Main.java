@@ -109,14 +109,18 @@ public final class Main {
                     report.complete() ? "COMPLETE" : "INCOMPLETE", report.entriesScanned(), report.findings().size());
             for (Finding f : report.findings())
                 out.printf("[%s] %s %s - %s%n", f.severity(), f.rule(), quote(f.entry()), f.message());
-            for (Report.Issue issue : report.issues()) out.printf("[INCOMPLETE] %s - %s%n", quote(issue.entry()), issue.message());
+            for (Report.Issue issue : report.issues()) out.printf("[INCOMPLETE %s] %s - %s%n", issue.code(), quote(issue.entry()), issue.message());
             out.println("Heuristic release hygiene checks; a clean report does not prevent decompilation or prove absence of secrets.");
         }
     }
 
     static String json(Report report) {
-        StringBuilder b = new StringBuilder("{\"schemaVersion\":1,\"complete\":").append(report.complete())
-                .append(",\"entriesScanned\":").append(report.entriesScanned()).append(",\"findings\":[");
+        StringBuilder b = new StringBuilder("{\"schemaVersion\":2,\"complete\":").append(report.complete())
+                .append(",\"entriesScanned\":").append(report.entriesScanned())
+                .append(",\"summary\":{\"low\":").append(report.count(Finding.Severity.LOW))
+                .append(",\"medium\":").append(report.count(Finding.Severity.MEDIUM))
+                .append(",\"high\":").append(report.count(Finding.Severity.HIGH))
+                .append(",\"issues\":").append(report.issues().size()).append("},\"findings\":[");
         for (int i = 0; i < report.findings().size(); i++) {
             Finding f = report.findings().get(i);
             if (i > 0) b.append(',');
@@ -127,7 +131,8 @@ public final class Main {
         for (int i = 0; i < report.issues().size(); i++) {
             Report.Issue issue = report.issues().get(i);
             if (i > 0) b.append(',');
-            b.append("{\"entry\":").append(quote(issue.entry())).append(",\"message\":").append(quote(issue.message())).append('}');
+            b.append("{\"code\":").append(quote(issue.code().name())).append(",\"entry\":").append(quote(issue.entry()))
+                    .append(",\"message\":").append(quote(issue.message())).append('}');
         }
         return b.append("]}").toString();
     }

@@ -293,7 +293,20 @@ class JarScannerTest {
         Path jar = archive(Map.of("application.properties", bytes("spring.datasource.password=${DB_PASSWORD}")));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertEquals(0, Main.run(new String[] {"--format", "json", jar.toString()}, new PrintStream(out), System.err));
-        assertTrue(out.toString(StandardCharsets.UTF_8).startsWith("{\"schemaVersion\":1,\"complete\":true"));
+        assertTrue(out.toString(StandardCharsets.UTF_8).startsWith("{\"schemaVersion\":2,\"complete\":true"));
+    }
+
+    @Test void structuredIssuesAndSummaryHaveStableMachineReadableFields() throws Exception {
+        Report broken = new JarScanner().scan(archive(Map.of("broken.class", bytes("bad"))));
+        assertEquals(Report.IssueCode.INVALID_CLASS, broken.issues().get(0).code());
+        Report invalidText = new JarScanner().scan(archive(Map.of("bad.txt", new byte[] {(byte) 0xff})));
+        assertEquals(Report.IssueCode.INVALID_TEXT, invalidText.issues().get(0).code());
+        Report limited = new JarScanner(new JarScanner.Limits(10000, 1, 1000, 100, 2))
+                .scan(archive(Map.of("x", bytes("long"))));
+        assertEquals(Report.IssueCode.ENTRY_SIZE_LIMIT, limited.issues().get(0).code());
+        Report report = new Report(java.util.List.of(new Finding(Finding.Severity.HIGH, "PRIVATE_KEY", "x.pem", "redacted")),
+                java.util.List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "x.txt", "unsupported")), 2);
+        assertEquals("{\"schemaVersion\":2,\"complete\":false,\"entriesScanned\":2,\"summary\":{\"low\":0,\"medium\":0,\"high\":1,\"issues\":1},\"findings\":[{\"severity\":\"HIGH\",\"rule\":\"PRIVATE_KEY\",\"entry\":\"x.pem\",\"message\":\"redacted\"}],\"issues\":[{\"code\":\"INVALID_TEXT\",\"entry\":\"x.txt\",\"message\":\"unsupported\"}]}", Main.json(report));
     }
 
     private int cli(String... args) {

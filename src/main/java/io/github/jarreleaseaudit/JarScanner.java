@@ -20,6 +20,7 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
 import static io.github.jarreleaseaudit.Finding.Severity.*;
+import static io.github.jarreleaseaudit.Report.IssueCode.*;
 
 /** Offline, read-only ZIP/JAR inspection. Does not load classes or extract files. */
 public final class JarScanner {
@@ -57,7 +58,7 @@ public final class JarScanner {
                 ZipEntry entry = entries.nextElement();
                 if (!state.count(entry.getName())) break;
                 if (!names.add(canonicalName(entry.getName()))) {
-                    state.issue(entry.getName(), "Duplicate or ambiguous archive entry name; contents are not trustworthy.");
+                    state.issue(AMBIGUOUS_ENTRY, entry.getName(), "Duplicate or ambiguous archive entry name; contents are not trustworthy.");
                     continue;
                 }
                 try (InputStream in = zip.getInputStream(entry)) {
@@ -65,10 +66,11 @@ public final class JarScanner {
                     CRC32 crc = new CRC32();
                     crc.update(content);
                     if (entry.getSize() != content.length || entry.getCrc() != crc.getValue())
-                        throw new IOException("Outer entry integrity mismatch");
+                        throw new ScanProblem(ARCHIVE_INTEGRITY, "Outer entry size or CRC does not match its directory.");
                     if (!entry.isDirectory()) inspect(entry.getName(), content, 0, state);
+                    if (state.exhausted) break;
                 } catch (IOException | IllegalArgumentException e) {
-                    state.issue(entry.getName(), "Entry could not be fully inspected (invalid data or resource limit).");
+                    state.issue(entry.getName(), e);
                     if (state.exhausted) break;
                 }
             }
@@ -85,12 +87,16 @@ public final class JarScanner {
         if (SENSITIVE.matcher(lower).find())
             state.add(HIGH, "SENSITIVE_FILE", name, "Potential credential or keystore file; review and exclude private material.");
         if (lower.endsWith(".class")) {
-            var debug = ClassMetadata.debugAttributes(bytes);
+            Set<String> debug;
+            try { debug = ClassMetadata.debugAttributes(bytes); }
+            catch (IOException e) { throw new ScanProblem(INVALID_CLASS, "Class metadata could not be parsed."); }
             if (!debug.isEmpty()) state.add(LOW, "DEBUG_METADATA", name,
                     "Class metadata present: " + String.join(", ", debug) + ". Review the diagnostics/exposure tradeoff.");
         }
         if (TEXT.matcher(lower).matches() || lower.substring(lower.lastIndexOf('/') + 1).startsWith(".env")) {
-            String text = ResourceText.decode(bytes);
+            String text;
+            try { text = ResourceText.decode(bytes); }
+            catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "Text encoding is malformed or unsupported."); }
             if (PRIVATE_KEY.matcher(text).find())
                 state.add(HIGH, "PRIVATE_KEY", name, "Private key marker found; remove it and rotate any real exposed key.");
             var matcher = ASSIGNMENT.matcher(text);
@@ -104,11 +110,13 @@ public final class JarScanner {
         }
         if (lower.endsWith(".jar") || lower.endsWith(".zip")) {
             if (depth >= limits.maxNestedDepth()) {
-                state.issue(name, "Nested archive depth limit reached; contents were not inspected.");
+                state.issue(NESTING_DEPTH_LIMIT, name, "Nested archive depth limit reached; contents were not inspected.");
                 return;
             }
             // ZipInputStream alone accepts arbitrary non-ZIP input as an empty archive.
-            int expectedEntries = validateNestedZip(bytes);
+            int expectedEntries;
+            try { expectedEntries = validateNestedZip(bytes); }
+            catch (IOException e) { throw new ScanProblem(ARCHIVE_INTEGRITY, "Nested ZIP directory or headers are invalid or unsupported."); }
             try (ZipInputStream nested = new ZipInputStream(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
                 Set<String> names = new HashSet<>();
                 ZipEntry entry;
@@ -117,18 +125,19 @@ public final class JarScanner {
                     seen++;
                     String child = name + "!/" + entry.getName();
                     if (!state.count(child)) return;
-                    if (!names.add(canonicalName(entry.getName()))) throw new IOException("Ambiguous nested entry name");
+                    if (!names.add(canonicalName(entry.getName())))
+                        throw new ScanProblem(AMBIGUOUS_ENTRY, "Duplicate or ambiguous nested entry name.");
                     if (!entry.isDirectory()) {
                         try {
                             inspect(child, state.read(nested), depth + 1, state);
                         } catch (IOException e) {
-                            state.issue(child, "Entry could not be fully inspected (invalid data or resource limit).");
+                            state.issue(child, e);
                             if (state.exhausted) return;
                         }
                     } else state.read(nested); // Even directory payloads must consume the expansion budget.
                     nested.closeEntry();
                 }
-                if (seen != expectedEntries) throw new IOException("Nested directory entry count mismatch");
+                if (seen != expectedEntries) throw new ScanProblem(ARCHIVE_INTEGRITY, "Nested directory entry count mismatch.");
             }
         }
     }
@@ -202,7 +211,7 @@ public final class JarScanner {
 
         boolean count(String name) {
             if (entries >= limits.maxEntries()) {
-                issue(name, "Entry count limit reached; remaining entries were not inspected.");
+                issue(ENTRY_COUNT_LIMIT, name, "Entry count limit reached; remaining entries were not inspected.");
                 exhausted = true;
                 return false;
             }
@@ -218,11 +227,11 @@ public final class JarScanner {
                 expanded += n;
                 if (expanded > limits.maxExpandedBytes()) {
                     exhausted = true;
-                    throw new IOException("Expanded size limit");
+                    throw new ScanProblem(EXPANDED_SIZE_LIMIT, "Total expanded byte limit reached; scan stopped.");
                 }
                 if ((long) out.size() + n > limits.maxEntryBytes()) {
                     exhausted = true;
-                    throw new IOException("Entry size limit");
+                    throw new ScanProblem(ENTRY_SIZE_LIMIT, "Expanded entry size limit reached; scan stopped.");
                 }
                 out.write(buffer, 0, n);
             }
@@ -232,6 +241,15 @@ public final class JarScanner {
         void add(Finding.Severity severity, String rule, String entry, String message) {
             findings.add(new Finding(severity, rule, entry, message));
         }
-        void issue(String entry, String message) { issues.add(new Report.Issue(entry, message)); }
+        void issue(Report.IssueCode code, String entry, String message) { issues.add(new Report.Issue(code, entry, message)); }
+        void issue(String entry, Exception error) {
+            if (error instanceof ScanProblem problem) issue(problem.code, entry, problem.getMessage());
+            else issue(ENTRY_READ_ERROR, entry, "Archive entry could not be read completely or uses an unsupported format.");
+        }
+    }
+
+    private static final class ScanProblem extends IOException {
+        final Report.IssueCode code;
+        ScanProblem(Report.IssueCode code, String message) { super(message); this.code = code; }
     }
 }
