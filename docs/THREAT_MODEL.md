@@ -45,7 +45,10 @@ ZIP produces exit 2 and a generic stderr error without a report.
 Nested ZIP64, split archives and self-extracting/prefixed nested ZIPs are unsupported.
 Nested archives require a consistent end record and central-directory structure;
 the streaming reader checks entry payloads. This is not a forensic ZIP validator,
-nor a cryptographic signature/CRC verifier for all outer entries. The JDK `ZipFile`
+nor a cryptographic signature verifier. Outer entry expanded size and CRC-32 are
+checked against the central directory, including directory payloads; mismatches
+produce an incomplete result. CRC-32 detects corruption, not malicious tampering
+by an attacker who can rewrite the checksum. The JDK `ZipFile`
 reads an outer central directory; memory/CPU are not a formal hard sandbox. Use
 OS/container memory and time limits for untrusted inputs. Do not run as administrator.
 

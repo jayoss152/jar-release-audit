@@ -87,6 +87,28 @@ class JarScannerTest {
         assertTrue(new JarScanner().scan(archive(Map.of("empty.jar", zip(Map.of())))).complete());
     }
 
+    @Test void corruptedStoredOuterEntryCannotPassAsClean() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] payload = bytes("password=fake-only-value");
+        try (ZipOutputStream zip = new ZipOutputStream(out)) {
+            ZipEntry entry = new ZipEntry("application.properties");
+            entry.setMethod(ZipEntry.STORED);
+            entry.setSize(payload.length);
+            java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+            crc.update(payload);
+            entry.setCrc(crc.getValue());
+            zip.putNextEntry(entry);
+            zip.write(payload);
+            zip.closeEntry();
+        }
+        byte[] corrupted = out.toByteArray();
+        corrupted[30 + "application.properties".length()] ^= 1;
+        Path jar = temp.resolve("corrupted.jar");
+        Files.write(jar, corrupted);
+        assertFalse(new JarScanner().scan(jar).complete());
+        assertEquals(2, cli("--fail-on", "none", jar.toString()));
+    }
+
     @Test void depthLimitIsIncomplete() throws Exception {
         var scanner = new JarScanner(new JarScanner.Limits(10000, 10000, 10000, 100, 0));
         Report r = scanner.scan(archive(Map.of("nested.jar", zip(Map.of()))));

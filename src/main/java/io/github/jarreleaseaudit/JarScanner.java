@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
+import java.util.zip.CRC32;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
@@ -52,9 +53,13 @@ public final class JarScanner {
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
                 if (!state.count(entry.getName())) break;
-                if (entry.isDirectory()) continue;
                 try (InputStream in = zip.getInputStream(entry)) {
-                    inspect(entry.getName(), state.read(in), 0, state);
+                    byte[] content = state.read(in);
+                    CRC32 crc = new CRC32();
+                    crc.update(content);
+                    if (entry.getSize() != content.length || entry.getCrc() != crc.getValue())
+                        throw new IOException("Outer entry integrity mismatch");
+                    if (!entry.isDirectory()) inspect(entry.getName(), content, 0, state);
                 } catch (IOException | IllegalArgumentException e) {
                     state.issue(entry.getName(), "Entry could not be fully inspected (invalid data or resource limit).");
                     if (state.exhausted) break;
