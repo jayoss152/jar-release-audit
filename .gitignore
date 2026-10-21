@@ -5,3 +5,4 @@
 *.log
 /examples/demo/target/
 /examples/demo/mapping.txt
+/examples/proguard/target/

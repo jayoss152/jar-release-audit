@@ -37,3 +37,9 @@ jobs:
           test "$result" -eq 1
           java -jar target/jar-release-audit-0.1.0.jar --format json --fail-on low examples/demo/target/hardened.jar > target/hardened-report.json
           java -jar target/jar-release-audit-0.1.0.jar target/jar-release-audit-0.1.0.jar
+      - name: Resolve optional ProGuard demo dependencies
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        run: mvn -B -ntp -f examples/proguard/pom.xml generate-resources
+      - name: Verify actual ProGuard transformation
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        run: java examples/proguard/Verify.java

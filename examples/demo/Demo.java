@@ -12,18 +12,21 @@ class Demo {
     public static void main(String[] args) throws Exception {
         Path dir = Path.of("examples/demo/target");
         Files.createDirectories(dir);
-        String source = "public class Hello { public static void main(String[] args) { System.out.println(\"hello release\"); } }\n";
+        String source = "public class Hello { public static void main(String[] args) { System.out.println(new Greeting().message()); } }\n"
+                + "class Greeting { String message() { return \"hello release\"; } }\n";
         Path java = dir.resolve("Hello.java");
         Files.writeString(java, source);
         compile(dir, java, "-g");
         Map<String, byte[]> leaky = new LinkedHashMap<>();
         leaky.put("Hello.class", Files.readAllBytes(dir.resolve("Hello.class")));
+        leaky.put("Greeting.class", Files.readAllBytes(dir.resolve("Greeting.class")));
         leaky.put("Hello.java", source.getBytes(StandardCharsets.UTF_8));
         leaky.put("application.properties", "password=demo-not-a-real-password\n".getBytes(StandardCharsets.UTF_8));
         jar(dir.resolve("leaky.jar"), leaky);
         compile(dir, java, "-g:none");
         Map<String, byte[]> hardened = new LinkedHashMap<>();
         hardened.put("Hello.class", Files.readAllBytes(dir.resolve("Hello.class")));
+        hardened.put("Greeting.class", Files.readAllBytes(dir.resolve("Greeting.class")));
         hardened.put("application.properties", "password=${DB_PASSWORD}\n".getBytes(StandardCharsets.UTF_8));
         jar(dir.resolve("hardened.jar"), hardened);
         System.out.println("Created examples/demo/target/{leaky,hardened}.jar (synthetic fixtures only).");

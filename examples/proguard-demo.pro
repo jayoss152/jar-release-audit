@@ -1,5 +1,6 @@
 # Original minimal example for the generated plain JVM demo. Not a Spring Boot preset.
-# Run from examples/demo/target using a separately installed ProGuard distribution.
+# Paths are relative to this config's directory, independent of the caller's cwd.
+-basedirectory demo/target
 -injars hardened.jar
 -outjars obfuscated.jar
 -libraryjars <java.home>/jmods/java.base.jmod(!**.jar;!module-info.class)

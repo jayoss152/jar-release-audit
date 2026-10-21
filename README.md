@@ -94,8 +94,10 @@ generated synthetic material. ZIP timestamps are fixed; the same JDK/toolchain
 produces repeatable demo archives (cross-JDK byte identity is not promised).
 
 An optional [ProGuard configuration](examples/proguard-demo.pro) and
-[integration guidance](docs/OBFUSCATION.md) explain the next step. ProGuard is
-installed separately; the optional configuration is not part of default tests.
+[verified transformation walkthrough](docs/OBFUSCATION.md) rename the demo helper,
+check unchanged program output, and audit the transformed JAR. ProGuard 7.10.0 is
+resolved separately for this optional example; the scanner retains zero runtime
+dependencies. The real transformation is also checked in CI on Ubuntu/JDK 17.
 
 ## Spring Boot
 
