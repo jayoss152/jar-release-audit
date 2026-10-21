@@ -54,6 +54,23 @@ class JarScannerTest {
             assertTrue(new JarScanner().scan(archive(Map.of("application.yml", bytes("password: " + value)))).findings().isEmpty());
     }
 
+    @Test void unicodeBomResourcesAreInspectedWithoutLeakingValues() throws Exception {
+        for (var charset : new java.nio.charset.Charset[] {StandardCharsets.UTF_8, StandardCharsets.UTF_16LE, StandardCharsets.UTF_16BE}) {
+            byte[] data = ("\ufeffpassword=fake-only-unicode").getBytes(charset);
+            Report r = new JarScanner().scan(archive(Map.of("application.yml", data)));
+            assertTrue(r.complete());
+            assertEquals(Set.of("SECRET_ASSIGNMENT"), rules(r));
+            assertFalse(Main.json(r).contains("fake-only"));
+        }
+    }
+
+    @Test void malformedOrUnsupportedTextEncodingsAreIncomplete() throws Exception {
+        for (byte[] data : new byte[][] {new byte[] {(byte) 0xc3, 0x28},
+                new byte[] {(byte) 0xff, (byte) 0xfe, 0, 0},
+                "password=fake".getBytes(StandardCharsets.UTF_16LE)})
+            assertFalse(new JarScanner().scan(archive(Map.of("application.properties", data))).complete());
+    }
+
     @Test void findsMetadataStructurallyAndDistinguishesStrippedClasses() throws Exception {
         byte[] debug = compile("-g", "class Sample { int calc(int arg) { int value = arg + 1; return value; } }");
         var metadata = ClassMetadata.debugAttributes(debug);

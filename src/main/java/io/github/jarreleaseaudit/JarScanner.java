@@ -90,7 +90,7 @@ public final class JarScanner {
                     "Class metadata present: " + String.join(", ", debug) + ". Review the diagnostics/exposure tradeoff.");
         }
         if (TEXT.matcher(lower).matches() || lower.substring(lower.lastIndexOf('/') + 1).startsWith(".env")) {
-            String text = new String(bytes, StandardCharsets.UTF_8);
+            String text = ResourceText.decode(bytes);
             if (PRIVATE_KEY.matcher(text).find())
                 state.add(HIGH, "PRIVATE_KEY", name, "Private key marker found; remove it and rotate any real exposed key.");
             var matcher = ASSIGNMENT.matcher(text);
