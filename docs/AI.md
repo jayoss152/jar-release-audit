@@ -74,3 +74,10 @@ timeout. Unknown fields (including API-key fields) are rejected. Configuration
 does not grant consent: `--allow-ai` and a new advisory output path remain
 required. Endpoint/model/timeout CLI overrides cannot be mixed with a config.
 There is no home-directory lookup, environment-variable lookup or key creation.
+
+Security regressions exercise the complete CLI/HTTP boundary with synthetic
+inputs: absent consent, instruction-like archive names, malformed request
+contracts, redirected/oversized/error responses, a stalled body deadline and XXE
+attempts. The tests prove those controlled behaviors, not resistance to every
+model hallucination or service defect. Duplicate CLI options are rejected to
+avoid ambiguous endpoint/config selection. No real model-quality claim is made.

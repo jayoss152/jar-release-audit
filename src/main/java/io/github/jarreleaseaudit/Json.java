@@ -96,6 +96,7 @@ final class Json {
                     case 't' -> out.append('\t');
                     case 'u' -> {
                         if (position + 4 > text.length()) throw bad();
+                        if (!text.substring(position, position + 4).matches("[0-9a-fA-F]{4}")) throw bad();
                         try { out.append((char) Integer.parseInt(text.substring(position, position + 4), 16)); }
                         catch (NumberFormatException e) { throw bad(); }
                         position += 4;

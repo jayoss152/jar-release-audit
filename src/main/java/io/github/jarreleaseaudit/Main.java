@@ -65,6 +65,7 @@ public final class Main {
         boolean allowAi = false;
         long aiTimeout = 5000;
         AiClient.Options aiOptions = null;
+        var seenOptions = new java.util.HashSet<String>();
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -73,6 +74,7 @@ public final class Main {
         long scanMillis = 30000;
         try {
             for (int i = 0; i < args.length; i++) {
+                if (!positional && args[i].startsWith("-") && !args[i].equals("--") && !seenOptions.add(args[i])) throw new IllegalArgumentException();
                 if (positional) {
                     if (input != null) throw new IllegalArgumentException();
                     input = args[i];
