@@ -24,6 +24,7 @@ public final class Main {
               --list-rules                       List deterministic guidance and stable rule IDs
               --from-report PATH                 Import a validated schema v2 report instead of a JAR
               --baseline PATH                    Fail on new findings; all evidence stays in the report
+              --policy PATH                      Explicit fail-rule policy; cannot mix with --fail-on
               --redact-paths                     Replace paths and uncontrolled prose for local sharing
               --ai-export PATH                   Export anonymized prompt/evidence JSON locally; no network
               --ai-import PATH --ai-output PATH  Validate offline model advice into a new advisory sidecar
@@ -52,6 +53,9 @@ public final class Main {
         String output = null;
         String fromReport = null;
         String baseline = null;
+        String policy = null;
+        GatePolicy gatePolicy = null;
+        boolean thresholdSpecified = false;
         boolean redactPaths = false;
         String aiExport = null;
         String aiImport = null, aiOutput = null;
@@ -85,6 +89,7 @@ public final class Main {
                     case "--output" -> output = args[++i];
                     case "--from-report" -> fromReport = args[++i];
                     case "--baseline" -> baseline = args[++i];
+                    case "--policy" -> policy = args[++i];
                     case "--redact-paths" -> redactPaths = true;
                     case "--ai-export" -> aiExport = args[++i];
                     case "--ai-import" -> aiImport = args[++i];
@@ -115,6 +120,7 @@ public final class Main {
                         if (!format.matches("text|json|plan|sarif")) throw new IllegalArgumentException();
                     }
                     case "--fail-on" -> {
+                        thresholdSpecified = true;
                         threshold = args[++i];
                         if (!threshold.matches("low|medium|high|none")) throw new IllegalArgumentException();
                     }
@@ -125,6 +131,10 @@ public final class Main {
                 }
             }
             if ((input == null) == (fromReport == null)) throw new IllegalArgumentException();
+            if (policy != null) {
+                if (thresholdSpecified) throw new IllegalArgumentException();
+                gatePolicy = GatePolicy.read(Path.of(policy));
+            }
             if (aiConfig != null) {
                 if (aiEndpoint != null || aiModel != null || aiTimeoutSpecified) throw new IllegalArgumentException();
                 var config = AiConfig.read(Path.of(aiConfig));
@@ -193,6 +203,7 @@ public final class Main {
             }
         }
         if (!report.complete() || aiFailed) return 2;
+        if (gatePolicy != null) return gatePolicy.fails(gateFindings) ? 1 : 0;
         if (threshold.equals("none")) return 0;
         Finding.Severity minimum = Finding.Severity.valueOf(threshold.toUpperCase(Locale.ROOT));
         return gateFindings.stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;

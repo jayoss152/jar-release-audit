@@ -153,6 +153,13 @@ severities and completeness remain. It never changes exit gates or baseline
 matching, which still use the original evidence. Review even redacted reports
 before sharing; aggregate release characteristics remain visible.
 
+`--policy examples/gate-policy.example.json` selects explicit fail-rule IDs for
+CI instead of a severity threshold. Unknown/duplicate rules are rejected; an
+empty list is an intentional no-finding-failure policy, never permission to accept
+an incomplete scan. Policies cannot be mixed with `--fail-on`. Baseline selection
+still applies only to the gate, all findings remain visible, and model advice
+cannot create or change a policy. Review policy files as accepted release criteria.
+
 `mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
 archives. Coverage includes metadata parsing versus string literals, externalized
 values, nested Boot libraries, malformed data, budgets, deterministic/redacted

@@ -1,0 +1,4 @@
+{
+  "schemaVersion": 1,
+  "failRules": ["PRIVATE_KEY", "SECRET_ASSIGNMENT", "SENSITIVE_FILE"]
+}

@@ -51,4 +51,19 @@ class ReportWorkflowTest {
         }
         assertFalse(shared.complete()); assertEquals(report.count(Finding.Severity.HIGH), shared.count(Finding.Severity.HIGH));
     }
+    @Test void explicitGatePoliciesChangeOnlyFailureSelectionAndCannotAcceptIncompleteScans() throws Exception {
+        Path policy = temp.resolve("policy.json"), input = temp.resolve("scan.json");
+        Files.writeString(policy, "{\"schemaVersion\":1,\"failRules\":[\"SOURCE_FILE\"]}");
+        Files.writeString(input, Main.json(sample()));
+        var sink = new PrintStream(new ByteArrayOutputStream());
+        assertEquals(0, Main.run(new String[] {"--from-report", input.toString(), "--policy", policy.toString()}, sink, sink));
+        assertEquals(2, Main.run(new String[] {"--from-report", input.toString(), "--policy", policy.toString(), "--fail-on", "none"}, sink, sink));
+        Files.writeString(policy, "{\"schemaVersion\":1,\"failRules\":[\"PRIVATE_KEY\"]}");
+        assertEquals(1, Main.run(new String[] {"--from-report", input.toString(), "--policy", policy.toString()}, sink, sink));
+        Files.writeString(input, Main.json(new Report(sample().findings(), List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "x", "fixed")), 1)));
+        Files.writeString(policy, "{\"schemaVersion\":1,\"failRules\":[]}");
+        assertEquals(2, Main.run(new String[] {"--from-report", input.toString(), "--policy", policy.toString()}, sink, sink));
+        Files.writeString(policy, "{\"schemaVersion\":1,\"failRules\":[\"invented\"]}");
+        assertThrows(IOException.class, () -> GatePolicy.read(policy));
+    }
 }
