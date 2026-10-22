@@ -58,3 +58,11 @@ in the whole report. Each selected batch must match existing evidence and advice
 coverage reports available versus total findings. A partial export lacks its
 completion manifest; existing directories are never reused. Process each chosen
 batch explicitly with `--ai-request`; no automatic fan-out/network loop occurs.
+
+`--ai-cache chosen-local-directory` is optional and requires an original
+`--ai-request` plus the usual explicit local-model consent. Cache keys bind the
+request, endpoint and model; stored advice is validated again on every hit.
+A valid hit makes no HTTP request. A corrupt entry fails rather than silently
+calling a model or overwriting the file. Cache files contain sanitized inventory
+context and model-provided prose; keep the chosen directory private and review
+it before sharing. There is no credential storage or automatic default cache.

@@ -48,5 +48,9 @@ final class AiAdvice {
         return Json.write(object("kind", "jar-release-audit-reviewed-advice", "requestId", bundle.requestId(), "advisoryOnly", true,
                 "deterministicScanComplete", bundle.complete(), "addressedEvidence", covered, "availableEvidence", bundle.evidence().size(), "totalEvidence", bundle.totalEvidence(), "suggestions", suggestions));
     }
+    static String responseJson(Advice advice) {
+        return Json.write(object("kind", "jar-release-audit-model-advice", "requestId", advice.requestId(), "advice",
+                advice.items().stream().map(i -> (Object) object("evidenceIds", i.evidenceIds(), "actionId", i.actionId(), "rationale", i.rationale())).toList()));
+    }
     private static IOException invalid() { return new IOException("Invalid model advice structure or citation"); }
 }

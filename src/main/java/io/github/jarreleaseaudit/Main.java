@@ -33,6 +33,7 @@ public final class Main {
               --ai-request PATH                   Original anonymized request; required for offline import
               --ai-export-batches DIR             New directory of bounded offline requests; no model calls
               --ai-batch-size N                   1..200, default 100; maximum 100 batches
+              --ai-cache DIR                      Explicit local advice cache; requires --ai-request
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -56,6 +57,7 @@ public final class Main {
         String aiRequest = null;
         String aiBatches = null;
         int aiBatchSize = 100;
+        String aiCache = null;
         String aiEndpoint = null, aiModel = null;
         boolean allowAi = false;
         long aiTimeout = 5000;
@@ -85,6 +87,7 @@ public final class Main {
                     case "--ai-request" -> aiRequest = args[++i];
                     case "--ai-export-batches" -> aiBatches = args[++i];
                     case "--ai-batch-size" -> aiBatchSize = Integer.parseInt(args[++i]);
+                    case "--ai-cache" -> aiCache = args[++i];
                     case "--allow-ai" -> allowAi = true;
                     case "--ai-endpoint" -> aiEndpoint = args[++i];
                     case "--ai-model" -> aiModel = args[++i];
@@ -120,6 +123,7 @@ public final class Main {
             if (aiImport != null && aiRequest == null) throw new IllegalArgumentException();
             if (aiRequest != null && aiImport == null && aiEndpoint == null && aiExport == null) throw new IllegalArgumentException();
             if (aiBatchSize < 1 || aiBatchSize > 200 || (aiBatches == null && aiBatchSize != 100)) throw new IllegalArgumentException();
+            if (aiCache != null && (aiEndpoint == null || aiRequest == null)) throw new IllegalArgumentException();
             if ((aiImport != null || aiEndpoint != null) != (aiOutput != null)) throw new IllegalArgumentException();
             if (aiEndpoint != null) {
                 if (!allowAi) throw new IllegalArgumentException();
@@ -160,7 +164,8 @@ public final class Main {
         if (aiImport != null || aiOptions != null) {
             try {
                 var bundle = selectedBundle;
-                var advice = aiOptions == null ? AiAdvice.parse(Documents.read(Path.of(aiImport), 65536), bundle) : AiClient.invoke(aiOptions, bundle);
+                var advice = aiOptions == null ? AiAdvice.parse(Documents.read(Path.of(aiImport), 65536), bundle)
+                        : aiCache == null ? AiClient.invoke(aiOptions, bundle) : AiCache.invoke(aiOptions, bundle, Path.of(aiCache));
                 Documents.writeNew(Path.of(aiOutput), AiAdvice.json(advice, bundle) + "\n");
             } catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Optional model assistance failed or produced invalid advice. Deterministic findings were not changed."); aiFailed = true; }
         }

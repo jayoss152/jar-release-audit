@@ -60,4 +60,19 @@ class AiWorkflowTest {
         assertThrows(IOException.class, () -> AiBatches.export(report, directory, 100));
         assertThrows(IOException.class, () -> AiBatches.export(report, temp.resolve("too-many"), 1));
     }
+    @Test void explicitCacheRevalidatesHitsWithoutAnotherNetworkRequest() throws Exception {
+        var bundle = AiEvidence.from(sensitive());
+        Path cache = temp.resolve("cache");
+        try (var stub = new ModelStub()) {
+            var first = AiCache.invoke(stub.options(), bundle, cache);
+            assertEquals(first, AiCache.invoke(stub.options(), bundle, cache));
+            assertEquals(1, stub.calls.get());
+            Path entry;
+            try (var files = java.nio.file.Files.list(cache)) { entry = files.findFirst().orElseThrow(); }
+            assertFalse(java.nio.file.Files.readString(entry).contains("CANARY"));
+            java.nio.file.Files.writeString(entry, "invalid cache");
+            assertThrows(IOException.class, () -> AiCache.invoke(stub.options(), bundle, cache));
+            assertEquals(1, stub.calls.get());
+        }
+    }
 }
