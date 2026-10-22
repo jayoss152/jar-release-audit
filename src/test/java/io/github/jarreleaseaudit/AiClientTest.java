@@ -14,7 +14,10 @@ class AiClientTest {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/chat/completions", exchange -> {
             captured.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            byte[] response = Json.write(object("choices", java.util.List.of(object("finish_reason", "stop", "message", object("role", "assistant", "content", AiWorkflowTest.validAdvice()))))).getBytes(StandardCharsets.UTF_8);
+            var root = (java.util.Map<?, ?>) Json.parse(captured.get());
+            var user = (java.util.Map<?, ?>) ((java.util.List<?>) root.get("messages")).get(1);
+            String requestId = (String) ((java.util.Map<?, ?>) Json.parse((String) user.get("content"))).get("requestId");
+            byte[] response = Json.write(object("choices", java.util.List.of(object("finish_reason", "stop", "message", object("role", "assistant", "content", AiWorkflowTest.validAdvice(requestId)))))).getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, response.length); exchange.getResponseBody().write(response); exchange.close();
         });
         server.start();

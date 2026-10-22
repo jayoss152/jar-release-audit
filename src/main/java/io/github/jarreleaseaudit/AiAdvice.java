@@ -7,11 +7,11 @@ import static io.github.jarreleaseaudit.Json.object;
 /** Model prose remains untrusted; only catalog actions and existing citations are accepted. */
 final class AiAdvice {
     record Item(List<String> evidenceIds, String actionId, String rationale) { Item { evidenceIds = List.copyOf(evidenceIds); } }
-    record Advice(List<Item> items) { Advice { items = List.copyOf(items); } }
+    record Advice(String requestId, List<Item> items) { Advice { items = List.copyOf(items); } }
     private AiAdvice() { }
     static Advice parse(String text, AiEvidence.Bundle bundle) throws IOException {
-        Map<?, ?> root = ReportIO.object(Json.parse(text), "kind", "advice");
-        if (!"jar-release-audit-model-advice".equals(root.get("kind"))) throw invalid();
+        Map<?, ?> root = ReportIO.object(Json.parse(text), "kind", "requestId", "advice");
+        if (!"jar-release-audit-model-advice".equals(root.get("kind")) || !bundle.requestId().equals(root.get("requestId"))) throw invalid();
         Map<String, AiEvidence.Item> known = new HashMap<>();
         for (var item : bundle.evidence()) known.put(item.id(), item);
         List<?> values = ReportIO.list(root.get("advice"));
@@ -33,9 +33,10 @@ final class AiAdvice {
             if (ids.isEmpty()) throw invalid();
             items.add(new Item(ids, action, rationale));
         }
-        return new Advice(items);
+        return new Advice(bundle.requestId(), items);
     }
     static String json(Advice advice, AiEvidence.Bundle bundle) {
+        if (!advice.requestId().equals(bundle.requestId())) throw new IllegalArgumentException("Advice request mismatch");
         List<Object> suggestions = new ArrayList<>();
         int covered = 0;
         for (var item : advice.items()) {
@@ -44,7 +45,7 @@ final class AiAdvice {
                     "verification", rule.verify(), "reference", rule.reference(), "modelProvidedRationale", item.rationale()));
             covered += item.evidenceIds().size();
         }
-        return Json.write(object("kind", "jar-release-audit-reviewed-advice", "advisoryOnly", true,
+        return Json.write(object("kind", "jar-release-audit-reviewed-advice", "requestId", bundle.requestId(), "advisoryOnly", true,
                 "deterministicScanComplete", bundle.complete(), "addressedEvidence", covered, "totalEvidence", bundle.evidence().size(), "suggestions", suggestions));
     }
     private static IOException invalid() { return new IOException("Invalid model advice structure or citation"); }

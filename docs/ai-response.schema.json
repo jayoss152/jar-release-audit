@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Offline model advice (citations also require semantic validation)",
   "type": "object", "additionalProperties": false,
-  "required": ["kind", "advice"],
+  "required": ["kind", "requestId", "advice"],
   "properties": {
     "kind": {"const": "jar-release-audit-model-advice"},
+    "requestId": {"type": "string", "format": "uuid"},
     "advice": {"type": "array", "maxItems": 100, "items": {
       "type": "object", "additionalProperties": false,
       "required": ["evidenceIds", "actionId", "rationale"],

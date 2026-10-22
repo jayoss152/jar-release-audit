@@ -42,3 +42,10 @@ review its configuration before voluntarily enabling it.
 Valid advice never changes deterministic gates. An explicitly requested advice
 operation that fails is an operational error (exit 2); the deterministic report
 is still rendered and no fabricated successful model result is written.
+
+Model-input bundles use schema v2 and a fresh random `requestId` (a correlation
+identifier, not a credential). Advice must echo it exactly. Offline import now
+requires `--ai-request original-prompt.json`, whose inventory is checked against
+the selected local report. A stale response from another request is rejected.
+Only anonymized inventory is bound: this is not a cryptographic signature or
+artifact attestation. Keep the original request file for replay and review.

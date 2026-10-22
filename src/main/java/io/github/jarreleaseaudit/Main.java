@@ -30,6 +30,7 @@ public final class Main {
               --allow-ai --ai-endpoint URL --ai-model NAME --ai-output PATH
                                                  Explicit loopback-only model request; defaults off
               --ai-timeout-millis N               Local model deadline, 100..60000 (default 5000)
+              --ai-request PATH                   Original anonymized request; required for offline import
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -50,6 +51,7 @@ public final class Main {
         boolean redactPaths = false;
         String aiExport = null;
         String aiImport = null, aiOutput = null;
+        String aiRequest = null;
         String aiEndpoint = null, aiModel = null;
         boolean allowAi = false;
         long aiTimeout = 5000;
@@ -76,6 +78,7 @@ public final class Main {
                     case "--ai-export" -> aiExport = args[++i];
                     case "--ai-import" -> aiImport = args[++i];
                     case "--ai-output" -> aiOutput = args[++i];
+                    case "--ai-request" -> aiRequest = args[++i];
                     case "--allow-ai" -> allowAi = true;
                     case "--ai-endpoint" -> aiEndpoint = args[++i];
                     case "--ai-model" -> aiModel = args[++i];
@@ -108,6 +111,8 @@ public final class Main {
             }
             if ((input == null) == (fromReport == null)) throw new IllegalArgumentException();
             if (aiImport != null && aiEndpoint != null) throw new IllegalArgumentException();
+            if (aiImport != null && aiRequest == null) throw new IllegalArgumentException();
+            if (aiRequest != null && aiImport == null && aiEndpoint == null && aiExport == null) throw new IllegalArgumentException();
             if ((aiImport != null || aiEndpoint != null) != (aiOutput != null)) throw new IllegalArgumentException();
             if (aiEndpoint != null) {
                 if (!allowAi) throw new IllegalArgumentException();
@@ -131,14 +136,19 @@ public final class Main {
             try { gateFindings = ReportDiff.compare(report, ReportIO.read(Path.of(baseline))).added(); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to use baseline: select a valid complete schema v2 report."); return 2; }
         }
+        AiEvidence.Bundle selectedBundle = null;
+        if (aiExport != null || aiImport != null || aiOptions != null) {
+            try { selectedBundle = aiRequest == null ? AiEvidence.from(report) : AiEvidence.read(Path.of(aiRequest), report); }
+            catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to construct or validate anonymized model request."); return 2; }
+        }
         if (aiExport != null) {
-            try { Documents.writeNew(Path.of(aiExport), AiEvidence.json(AiEvidence.from(report)) + "\n"); }
+            try { Documents.writeNew(Path.of(aiExport), AiEvidence.json(selectedBundle) + "\n"); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to export bounded anonymized AI evidence; use a new destination file."); return 2; }
         }
         boolean aiFailed = false;
         if (aiImport != null || aiOptions != null) {
             try {
-                var bundle = AiEvidence.from(report);
+                var bundle = selectedBundle;
                 var advice = aiOptions == null ? AiAdvice.parse(Documents.read(Path.of(aiImport), 65536), bundle) : AiClient.invoke(aiOptions, bundle);
                 Documents.writeNew(Path.of(aiOutput), AiAdvice.json(advice, bundle) + "\n");
             } catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Optional model assistance failed or produced invalid advice. Deterministic findings were not changed."); aiFailed = true; }
