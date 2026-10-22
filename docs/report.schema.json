@@ -24,7 +24,7 @@
         "required": ["severity", "rule", "entry", "message"],
         "properties": {
           "severity": {"enum": ["LOW", "MEDIUM", "HIGH"]},
-          "rule": {"enum": ["SOURCE_FILE", "DEBUG_METADATA", "SENSITIVE_FILE", "SECRET_ASSIGNMENT", "PRIVATE_KEY", "DEVELOPMENT_ARTIFACT"]},
+          "rule": {"enum": ["SOURCE_FILE", "DEBUG_METADATA", "SENSITIVE_FILE", "SECRET_ASSIGNMENT", "PRIVATE_KEY", "DEVELOPMENT_ARTIFACT", "MANIFEST_CLASSPATH"]},
           "entry": {"type": "string"}, "message": {"type": "string"}
         }
       }

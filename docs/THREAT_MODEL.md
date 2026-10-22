@@ -20,6 +20,9 @@ potentially confidential because names can themselves contain private informatio
 Development-artifact names cover VCS internals, heap dumps, logs, backups, source
 maps and obvious SQL dump/backup names. Ordinary SQL migrations are not flagged
 by extension alone. Findings request review; intentional maps/resources can be valid.
+Manifest Class-Path values are unfolded and checked for external/absolute/parent
+references without opening those locations. Manifests above 64 KiB or malformed
+values are incomplete scans. Relative adjacent library references remain allowed.
 
 Private PEM headers at the start of a resource (optional UTF-8 BOM/whitespace)
 are recognized regardless of extension. This is header evidence, not key validity

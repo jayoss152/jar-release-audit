@@ -98,6 +98,12 @@ public final class JarScanner {
         boolean privateHeader = privatePemHeader(bytes);
         if (privateHeader) state.add(HIGH, "PRIVATE_KEY", name,
                 "Private key header found regardless of filename; remove it and rotate any real exposed key.");
+        if (lower.endsWith("meta-inf/manifest.mf")) {
+            try {
+                if (ManifestChecks.externalClasspath(bytes)) state.add(MEDIUM, "MANIFEST_CLASSPATH", name,
+                        "Manifest Class-Path references an external, absolute or parent location; review the intended release boundary.");
+            } catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "Manifest is malformed or exceeds its parsing budget."); }
+        }
         if (lower.endsWith(".class")) {
             Set<String> debug;
             try { debug = ClassMetadata.debugAttributes(bytes); }

@@ -46,6 +46,15 @@ class StructuredConfigTest {
         assertFalse(CredentialValues.properties("# password=ignored\n! token=ignored\npassword=${PASSWORD}\nsecret="));
         assertThrows(java.io.IOException.class, () -> CredentialValues.properties("password=\\uZZZZ"));
     }
+    @Test void manifestClasspathsAreUnfoldedAndCheckedWithoutOpeningReferences() throws Exception {
+        for (String value : new String[] {"https://example.invalid/library.jar", "file:/private.jar", "../lib/a.jar", "%2e%2e/lib/a.jar"})
+            assertTrue(ManifestChecks.externalClasspath(bytes("Manifest-Version: 1.0\r\nClass-Path: " + value + "\r\n\r\n")));
+        assertTrue(ManifestChecks.externalClasspath(bytes("Manifest-Version: 1.0\r\nClass-Path: lib/a.jar https://example.\r\n invalid/b.jar\r\n\r\n")));
+        assertFalse(ManifestChecks.externalClasspath(bytes("Manifest-Version: 1.0\r\nClass-Path: lib/a.jar lib/b.jar\r\n\r\n")));
+        var r = new JarScanner().scan(jar(temp, Map.of("META-INF/MANIFEST.MF", bytes("Manifest-Version: 1.0\r\nClass-Path: https://example.invalid/a.jar\r\n\r\n"))));
+        assertEquals("MANIFEST_CLASSPATH", r.findings().get(0).rule());
+        assertFalse(Main.json(r).contains("example.invalid"));
+    }
     @Test void developmentArtifactsAreReportedWithoutFlaggingNormalMigrations() throws Exception {
         for (String name : new String[] {".git/config", "heap.hprof", "mapping.txt", "application.properties.bak", "backup.sql", "app.js.map"}) {
             var r = new JarScanner().scan(jar(temp, Map.of(name, bytes("synthetic"))));
