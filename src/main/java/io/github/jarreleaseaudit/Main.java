@@ -31,6 +31,8 @@ public final class Main {
                                                  Explicit loopback-only model request; defaults off
               --ai-timeout-millis N               Local model deadline, 100..60000 (default 5000)
               --ai-request PATH                   Original anonymized request; required for offline import
+              --ai-export-batches DIR             New directory of bounded offline requests; no model calls
+              --ai-batch-size N                   1..200, default 100; maximum 100 batches
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -52,6 +54,8 @@ public final class Main {
         String aiExport = null;
         String aiImport = null, aiOutput = null;
         String aiRequest = null;
+        String aiBatches = null;
+        int aiBatchSize = 100;
         String aiEndpoint = null, aiModel = null;
         boolean allowAi = false;
         long aiTimeout = 5000;
@@ -79,6 +83,8 @@ public final class Main {
                     case "--ai-import" -> aiImport = args[++i];
                     case "--ai-output" -> aiOutput = args[++i];
                     case "--ai-request" -> aiRequest = args[++i];
+                    case "--ai-export-batches" -> aiBatches = args[++i];
+                    case "--ai-batch-size" -> aiBatchSize = Integer.parseInt(args[++i]);
                     case "--allow-ai" -> allowAi = true;
                     case "--ai-endpoint" -> aiEndpoint = args[++i];
                     case "--ai-model" -> aiModel = args[++i];
@@ -113,6 +119,7 @@ public final class Main {
             if (aiImport != null && aiEndpoint != null) throw new IllegalArgumentException();
             if (aiImport != null && aiRequest == null) throw new IllegalArgumentException();
             if (aiRequest != null && aiImport == null && aiEndpoint == null && aiExport == null) throw new IllegalArgumentException();
+            if (aiBatchSize < 1 || aiBatchSize > 200 || (aiBatches == null && aiBatchSize != 100)) throw new IllegalArgumentException();
             if ((aiImport != null || aiEndpoint != null) != (aiOutput != null)) throw new IllegalArgumentException();
             if (aiEndpoint != null) {
                 if (!allowAi) throw new IllegalArgumentException();
@@ -137,6 +144,10 @@ public final class Main {
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to use baseline: select a valid complete schema v2 report."); return 2; }
         }
         AiEvidence.Bundle selectedBundle = null;
+        if (aiBatches != null) {
+            try { AiBatches.export(report, Path.of(aiBatches), aiBatchSize); }
+            catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to export bounded model batches to a new directory. A partial export has no completion manifest."); return 2; }
+        }
         if (aiExport != null || aiImport != null || aiOptions != null) {
             try { selectedBundle = aiRequest == null ? AiEvidence.from(report) : AiEvidence.read(Path.of(aiRequest), report); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to construct or validate anonymized model request."); return 2; }

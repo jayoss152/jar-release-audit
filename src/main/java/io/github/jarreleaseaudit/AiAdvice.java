@@ -46,7 +46,7 @@ final class AiAdvice {
             covered += item.evidenceIds().size();
         }
         return Json.write(object("kind", "jar-release-audit-reviewed-advice", "requestId", bundle.requestId(), "advisoryOnly", true,
-                "deterministicScanComplete", bundle.complete(), "addressedEvidence", covered, "totalEvidence", bundle.evidence().size(), "suggestions", suggestions));
+                "deterministicScanComplete", bundle.complete(), "addressedEvidence", covered, "availableEvidence", bundle.evidence().size(), "totalEvidence", bundle.totalEvidence(), "suggestions", suggestions));
     }
     private static IOException invalid() { return new IOException("Invalid model advice structure or citation"); }
 }

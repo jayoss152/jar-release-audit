@@ -43,9 +43,18 @@ Valid advice never changes deterministic gates. An explicitly requested advice
 operation that fails is an operational error (exit 2); the deterministic report
 is still rendered and no fabricated successful model result is written.
 
-Model-input bundles use schema v2 and a fresh random `requestId` (a correlation
+Model-input bundles use a fresh random `requestId` (a correlation
 identifier, not a credential). Advice must echo it exactly. Offline import now
 requires `--ai-request original-prompt.json`, whose inventory is checked against
 the selected local report. A stale response from another request is rejected.
 Only anonymized inventory is bound: this is not a cryptographic signature or
 artifact attestation. Keep the original request file for replay and review.
+
+For large reports, `--ai-export-batches new-directory --ai-batch-size 100` writes
+up to 100 request files (1..200 findings each) and a completion manifest **last**.
+No model call is made. Current bundle schema v3 marks full/batch scope and total
+evidence; full-inventory v2 requests remain readable. IDs retain their positions
+in the whole report. Each selected batch must match existing evidence and advice
+coverage reports available versus total findings. A partial export lacks its
+completion manifest; existing directories are never reused. Process each chosen
+batch explicitly with `--ai-request`; no automatic fan-out/network loop occurs.
