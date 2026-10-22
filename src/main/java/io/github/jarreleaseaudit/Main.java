@@ -34,6 +34,7 @@ public final class Main {
               --ai-export-batches DIR             New directory of bounded offline requests; no model calls
               --ai-batch-size N                   1..200, default 100; maximum 100 batches
               --ai-cache DIR                      Explicit local advice cache; requires --ai-request
+              --ai-config PATH                    Explicit local-model config; still requires --allow-ai
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -58,6 +59,8 @@ public final class Main {
         String aiBatches = null;
         int aiBatchSize = 100;
         String aiCache = null;
+        String aiConfig = null;
+        boolean aiTimeoutSpecified = false;
         String aiEndpoint = null, aiModel = null;
         boolean allowAi = false;
         long aiTimeout = 5000;
@@ -88,10 +91,11 @@ public final class Main {
                     case "--ai-export-batches" -> aiBatches = args[++i];
                     case "--ai-batch-size" -> aiBatchSize = Integer.parseInt(args[++i]);
                     case "--ai-cache" -> aiCache = args[++i];
+                    case "--ai-config" -> aiConfig = args[++i];
                     case "--allow-ai" -> allowAi = true;
                     case "--ai-endpoint" -> aiEndpoint = args[++i];
                     case "--ai-model" -> aiModel = args[++i];
-                    case "--ai-timeout-millis" -> aiTimeout = Long.parseLong(args[++i]);
+                    case "--ai-timeout-millis" -> { aiTimeout = Long.parseLong(args[++i]); aiTimeoutSpecified = true; }
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -119,6 +123,11 @@ public final class Main {
                 }
             }
             if ((input == null) == (fromReport == null)) throw new IllegalArgumentException();
+            if (aiConfig != null) {
+                if (aiEndpoint != null || aiModel != null || aiTimeoutSpecified) throw new IllegalArgumentException();
+                var config = AiConfig.read(Path.of(aiConfig));
+                aiEndpoint = config.endpoint().toString(); aiModel = config.model(); aiTimeout = config.timeoutMillis();
+            }
             if (aiImport != null && aiEndpoint != null) throw new IllegalArgumentException();
             if (aiImport != null && aiRequest == null) throw new IllegalArgumentException();
             if (aiRequest != null && aiImport == null && aiEndpoint == null && aiExport == null) throw new IllegalArgumentException();
@@ -131,7 +140,7 @@ public final class Main {
             } else if (allowAi || aiModel != null || aiTimeout != 5000) throw new IllegalArgumentException();
             limits = new JarScanner.Limits(archiveBytes, entryBytes, expandedBytes, entries, depth);
             if (scanMillis < 1 || scanMillis > 3600000) throw new IllegalArgumentException();
-        } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+        } catch (IOException | IllegalArgumentException | ArrayIndexOutOfBoundsException | SecurityException e) {
             err.println(USAGE);
             return 2;
         }

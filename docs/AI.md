@@ -66,3 +66,11 @@ A valid hit makes no HTTP request. A corrupt entry fails rather than silently
 calling a model or overwriting the file. Cache files contain sanitized inventory
 context and model-provided prose; keep the chosen directory private and review
 it before sharing. There is no credential storage or automatic default cache.
+
+`--ai-config chosen-file.json` reads only an explicitly selected, bounded JSON
+configuration. See `examples/local-model.example.json`; it contains no credentials.
+The only fields are schema version, loopback endpoint, model identifier and
+timeout. Unknown fields (including API-key fields) are rejected. Configuration
+does not grant consent: `--allow-ai` and a new advisory output path remain
+required. Endpoint/model/timeout CLI overrides cannot be mixed with a config.
+There is no home-directory lookup, environment-variable lookup or key creation.

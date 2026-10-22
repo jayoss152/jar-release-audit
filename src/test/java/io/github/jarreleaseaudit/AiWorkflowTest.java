@@ -75,4 +75,19 @@ class AiWorkflowTest {
             assertEquals(1, stub.calls.get());
         }
     }
+    @Test void explicitConfigCannotStoreCredentialsOrGrantConsent() throws Exception {
+        try (var stub = new ModelStub()) {
+            Path config = temp.resolve("local-model.json"), input = temp.resolve("scan.json");
+            String json = Json.write(Json.object("schemaVersion", 1, "endpoint", stub.endpoint().toString(), "model", "synthetic-stub", "timeoutMillis", 5000));
+            java.nio.file.Files.writeString(config, json); java.nio.file.Files.writeString(input, Main.json(ReportWorkflowTest.sample()));
+            assertEquals(stub.endpoint(), AiConfig.read(config).endpoint());
+            var sink = new java.io.PrintStream(new java.io.ByteArrayOutputStream());
+            assertEquals(2, Main.run(new String[] {"--from-report", input.toString(), "--ai-config", config.toString(), "--ai-output", temp.resolve("not-created.json").toString()}, sink, sink));
+            assertEquals(0, stub.calls.get());
+            assertEquals(1, Main.run(new String[] {"--from-report", input.toString(), "--allow-ai", "--ai-config", config.toString(), "--ai-output", temp.resolve("advice.json").toString()}, sink, sink));
+            assertEquals(1, stub.calls.get());
+            java.nio.file.Files.writeString(config, json.replace("\"schemaVersion\":1", "\"schemaVersion\":1,\"apiKey\":\"not-allowed\""));
+            assertThrows(IOException.class, () -> AiConfig.read(config));
+        }
+    }
 }

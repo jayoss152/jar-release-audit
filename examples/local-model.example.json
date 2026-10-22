@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "endpoint": "http://127.0.0.1:1234/v1/chat/completions",
+  "model": "YOUR_LOCAL_MODEL",
+  "timeoutMillis": 5000
+}
