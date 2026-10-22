@@ -20,4 +20,15 @@ class RulesTest {
         for (String id : ids) assertTrue(out.toString().contains(id));
         assertThrows(IllegalArgumentException.class, () -> Rules.get("invented-rule"));
     }
+    @Test void planReferencesEvidenceAndEscapesUntrustedArchiveNames() {
+        var finding = new Finding(Finding.Severity.HIGH, "PRIVATE_KEY", "`</code><script>untrusted</script>", "ignored raw message");
+        var report = new Report(java.util.List.of(finding), java.util.List.of(), 1);
+        String plan = RemediationPlan.markdown(report);
+        assertTrue(plan.contains("F00001")); assertTrue(plan.contains("remove") || plan.contains("Remove"));
+        assertTrue(plan.contains("https://github.com/jayoss152/jar-release-audit/"));
+        assertFalse(plan.contains("<script>")); assertFalse(plan.contains("ignored raw message"));
+        assertTrue(plan.contains("not model output"));
+        var incomplete = new Report(java.util.List.of(), java.util.List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "x", "raw")), 1);
+        assertTrue(RemediationPlan.markdown(incomplete).contains("INCOMPLETE"));
+    }
 }

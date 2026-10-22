@@ -121,6 +121,11 @@ executable JAR.
 
 ## Development
 
+`--format plan` generates a deterministic Markdown remediation plan grouped by
+rule and priority, with evidence IDs, verification steps and first-party references.
+It is not AI output. Archive names remain local report data and are escaped;
+incomplete inspection is always shown and still exits 2.
+
 `mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
 archives. Coverage includes metadata parsing versus string literals, externalized
 values, nested Boot libraries, malformed data, budgets, deterministic/redacted

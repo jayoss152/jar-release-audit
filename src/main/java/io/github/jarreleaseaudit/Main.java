@@ -11,7 +11,7 @@ import java.util.Locale;
 public final class Main {
     private static final String USAGE = """
             Usage: java -jar jar-release-audit-0.1.0.jar [options] <release.jar>
-              --format text|json                 Default: text
+              --format text|json|plan            Default: text; plan is deterministic Markdown
               --fail-on low|medium|high|none      Default: medium
               --output PATH                      Write a new UTF-8 report file (never overwrite)
               --max-archive-bytes N              Default: 134217728
@@ -33,7 +33,7 @@ public final class Main {
     }
 
     static int run(String[] args, PrintStream out, PrintStream err) {
-        boolean json = false;
+        String format = "text";
         String threshold = "medium";
         String input = null;
         String output = null;
@@ -66,9 +66,8 @@ public final class Main {
                     case "--max-depth" -> depth = Integer.parseInt(args[++i]);
                     case "--max-scan-millis" -> scanMillis = Long.parseLong(args[++i]);
                     case "--format" -> {
-                        String format = args[++i];
-                        if (!format.equals("text") && !format.equals("json")) throw new IllegalArgumentException();
-                        json = format.equals("json");
+                        format = args[++i];
+                        if (!format.matches("text|json|plan")) throw new IllegalArgumentException();
                     }
                     case "--fail-on" -> {
                         threshold = args[++i];
@@ -94,11 +93,11 @@ public final class Main {
             err.println("Unable to inspect archive: input unavailable, invalid ZIP, or input size limit exceeded.");
             return 2;
         }
-        if (output == null) render(report, json, out);
+        if (output == null) render(report, format, out);
         else {
             try (var stream = Files.newOutputStream(Path.of(output), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
                  PrintStream file = new PrintStream(stream, false, StandardCharsets.UTF_8)) {
-                render(report, json, file);
+                render(report, format, file);
                 if (file.checkError()) throw new IOException("Report write failed");
             } catch (IOException | IllegalArgumentException | SecurityException e) {
                 err.println("Unable to write report: use a new file in an existing writable directory. Existing files are never overwritten.");
@@ -111,8 +110,9 @@ public final class Main {
         return report.findings().stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;
     }
 
-    private static void render(Report report, boolean json, PrintStream out) {
-        if (json) out.println(json(report));
+    private static void render(Report report, String format, PrintStream out) {
+        if (format.equals("plan")) out.print(RemediationPlan.markdown(report));
+        else if (format.equals("json")) out.println(json(report));
         else {
             out.printf("JAR Release Audit: %s; %d entries; %d findings%n",
                     report.complete() ? "COMPLETE" : "INCOMPLETE", report.entriesScanned(), report.findings().size());
