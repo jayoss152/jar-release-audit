@@ -26,6 +26,7 @@ public final class Main {
               --baseline PATH                    Fail on new findings; all evidence stays in the report
               --redact-paths                     Replace paths and uncontrolled prose for local sharing
               --ai-export PATH                   Export anonymized prompt/evidence JSON locally; no network
+              --ai-import PATH --ai-output PATH  Validate offline model advice into a new advisory sidecar
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -45,6 +46,7 @@ public final class Main {
         String baseline = null;
         boolean redactPaths = false;
         String aiExport = null;
+        String aiImport = null, aiOutput = null;
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -65,6 +67,8 @@ public final class Main {
                     case "--baseline" -> baseline = args[++i];
                     case "--redact-paths" -> redactPaths = true;
                     case "--ai-export" -> aiExport = args[++i];
+                    case "--ai-import" -> aiImport = args[++i];
+                    case "--ai-output" -> aiOutput = args[++i];
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -92,6 +96,7 @@ public final class Main {
                 }
             }
             if ((input == null) == (fromReport == null)) throw new IllegalArgumentException();
+            if ((aiImport == null) != (aiOutput == null)) throw new IllegalArgumentException();
             limits = new JarScanner.Limits(archiveBytes, entryBytes, expandedBytes, entries, depth);
             if (scanMillis < 1 || scanMillis > 3600000) throw new IllegalArgumentException();
         } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
@@ -113,6 +118,13 @@ public final class Main {
         if (aiExport != null) {
             try { Documents.writeNew(Path.of(aiExport), AiEvidence.json(AiEvidence.from(report)) + "\n"); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to export bounded anonymized AI evidence; use a new destination file."); return 2; }
+        }
+        if (aiImport != null) {
+            try {
+                var bundle = AiEvidence.from(report);
+                var advice = AiAdvice.parse(Documents.read(Path.of(aiImport), 65536), bundle);
+                Documents.writeNew(Path.of(aiOutput), AiAdvice.json(advice, bundle) + "\n");
+            } catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to validate offline model advice or write a new advisory output. Deterministic findings were not changed."); return 2; }
         }
         Report displayed = redactPaths ? SharedReport.redact(report) : report;
         if (output == null) render(displayed, format, out);
@@ -175,7 +187,7 @@ public final class Main {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '"' || c == '\\') b.append('\\').append(c);
-            else if (Character.isISOControl(c) || Character.isSurrogate(c) || c == '\u2028' || c == '\u2029'
+            else if (c == '<' || c == '>' || c == '&' || Character.isISOControl(c) || Character.isSurrogate(c) || c == '\u2028' || c == '\u2029'
                     || Character.getType(c) == Character.FORMAT) b.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
             else b.append(c);
         }

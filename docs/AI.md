@@ -14,3 +14,12 @@ Model output is advisory. It cannot alter deterministic findings, severities,
 completeness, baselines or gate exit codes. Evidence numbers refer to the local
 report; a model cannot infer filenames from them. Model explanations can still be
 wrong and require human review. No source edits or commands are applied.
+
+`--ai-import model-response.json --ai-output new-advice.json` validates an offline
+response against the current report. Only known evidence IDs and their matching
+catalog action IDs are accepted. Duplicate/hallucinated citations, unknown fields,
+oversized prose and terminal/format controls are rejected. The sidecar contains
+fixed actions/references plus explicitly untrusted model rationale, safe JSON
+escaping and coverage counts. It cannot replace the scan or its exit policy.
+See [the response schema](ai-response.schema.json); semantic reference checks are
+additional to that schema. Import itself performs no model call.

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Offline model advice (citations also require semantic validation)",
+  "type": "object", "additionalProperties": false,
+  "required": ["kind", "advice"],
+  "properties": {
+    "kind": {"const": "jar-release-audit-model-advice"},
+    "advice": {"type": "array", "maxItems": 100, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidenceIds", "actionId", "rationale"],
+      "properties": {
+        "evidenceIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^F[0-9]{5}$"}},
+        "actionId": {"enum": ["exclude-source", "review-metadata", "review-private-material", "externalize-credentials", "remove-rotate-key", "exclude-development", "review-classpath"]},
+        "rationale": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    }}
+  }
+}

@@ -22,4 +22,17 @@ class AiWorkflowTest {
         var tooMany = new Report(java.util.Collections.nCopies(201, sensitive().findings().get(0)), List.of(), 201);
         assertThrows(IOException.class, () -> AiEvidence.from(tooMany));
     }
+    static String validAdvice() { return "{\"kind\":\"jar-release-audit-model-advice\",\"advice\":[{\"evidenceIds\":[\"F00001\"],\"actionId\":\"remove-rotate-key\",\"rationale\":\"Prioritize key review.\"}]}"; }
+    @Test void modelAdviceRequiresKnownCitationsAndActionsWithoutAuthorityOverTheScan() throws Exception {
+        var bundle = AiEvidence.from(sensitive());
+        var advice = AiAdvice.parse(validAdvice(), bundle);
+        String reviewed = AiAdvice.json(advice, bundle);
+        assertTrue(reviewed.contains("\"advisoryOnly\":true"));
+        assertTrue(reviewed.contains("\"deterministicScanComplete\":false"));
+        for (String bad : List.of(validAdvice().replace("F00001", "F99999"), validAdvice().replace("remove-rotate-key", "execute-command"),
+                validAdvice().replace("\"advice\":", "\"findings\":[],\"advice\":"), validAdvice().replace("Prioritize key review.", "bad\\u001bmessage")))
+            assertThrows(IOException.class, () -> AiAdvice.parse(bad, bundle));
+        String html = AiAdvice.json(AiAdvice.parse(validAdvice().replace("Prioritize key review.", "<script>not executable</script>"), bundle), bundle);
+        assertFalse(html.contains("<script>"));
+    }
 }
