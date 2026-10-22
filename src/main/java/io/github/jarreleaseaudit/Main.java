@@ -21,6 +21,7 @@ public final class Main {
               --max-depth N                      Default: 2 (allowed: 0..8)
               --max-scan-millis N                Default: 30000 (allowed: 1..3600000)
               --help, -h / --version
+              --list-rules                       List deterministic guidance and stable rule IDs
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -54,6 +55,10 @@ public final class Main {
                     case "--output" -> output = args[++i];
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
+                    case "--list-rules" -> {
+                        for (var rule : Rules.all()) out.printf("%s [%s] %s - %s%n", rule.id(), rule.severity(), rule.actionId(), rule.action());
+                        return 0;
+                    }
                     case "--max-archive-bytes" -> archiveBytes = Long.parseLong(args[++i]);
                     case "--max-entry-bytes" -> entryBytes = Integer.parseInt(args[++i]);
                     case "--max-expanded-bytes" -> expandedBytes = Long.parseLong(args[++i]);

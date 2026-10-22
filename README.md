@@ -61,6 +61,10 @@ an input filename starting with `-`.
 
 ## Rules
 
+`--list-rules` lists stable IDs and reviewed remediation actions without opening a
+JAR. The `Rules` catalog is deterministic guidance, not an AI model or a guarantee
+that a suggested change is appropriate without application tests.
+
 | Rule | Severity | Review action |
 | --- | --- | --- |
 | `SOURCE_FILE` | MEDIUM | Exclude source resources from executable releases unless intentional |
