@@ -41,4 +41,14 @@ class ReportWorkflowTest {
         Files.writeString(input, Main.json(incomplete));
         assertEquals(2, Main.run(new String[] {"--from-report", input.toString(), "--baseline", baseline.toString(), "--fail-on", "none"}, new PrintStream(new ByteArrayOutputStream()), System.err));
     }
+    @Test void sharedReportsRemovePathsAndRawMessagesAcrossFormats() throws Exception {
+        var report = new Report(List.of(new Finding(Finding.Severity.HIGH, "PRIVATE_KEY", "SYNTHETIC-PATH-CANARY.pem", "SYNTHETIC-PROSE-CANARY")),
+                List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "SYNTHETIC-PATH-CANARY.pem", "SYNTHETIC-PROSE-CANARY")), 1);
+        var shared = SharedReport.redact(report);
+        assertEquals(shared.findings().get(0).entry(), shared.issues().get(0).entry());
+        for (String output : List.of(Main.json(shared), RemediationPlan.markdown(shared), Sarif.render(shared))) {
+            assertFalse(output.contains("CANARY")); assertTrue(output.contains("entry-1"));
+        }
+        assertFalse(shared.complete()); assertEquals(report.count(Finding.Severity.HIGH), shared.count(Finding.Severity.HIGH));
+    }
 }

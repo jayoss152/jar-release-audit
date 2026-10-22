@@ -143,6 +143,12 @@ logical entry path. The output still contains **all current evidence**; baseline
 do not make findings safe, and incomplete scans always exit 2. Review baseline
 changes as security-relevant policy decisions; model advice cannot update them.
 
+`--redact-paths` produces a shareable local report: logical entry names become
+opaque aliases and all messages come from the fixed catalog. Counts, rule IDs,
+severities and completeness remain. It never changes exit gates or baseline
+matching, which still use the original evidence. Review even redacted reports
+before sharing; aggregate release characteristics remain visible.
+
 `mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
 archives. Coverage includes metadata parsing versus string literals, externalized
 values, nested Boot libraries, malformed data, budgets, deterministic/redacted

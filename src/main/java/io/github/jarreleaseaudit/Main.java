@@ -24,6 +24,7 @@ public final class Main {
               --list-rules                       List deterministic guidance and stable rule IDs
               --from-report PATH                 Import a validated schema v2 report instead of a JAR
               --baseline PATH                    Fail on new findings; all evidence stays in the report
+              --redact-paths                     Replace paths and uncontrolled prose for local sharing
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -41,6 +42,7 @@ public final class Main {
         String output = null;
         String fromReport = null;
         String baseline = null;
+        boolean redactPaths = false;
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -59,6 +61,7 @@ public final class Main {
                     case "--output" -> output = args[++i];
                     case "--from-report" -> fromReport = args[++i];
                     case "--baseline" -> baseline = args[++i];
+                    case "--redact-paths" -> redactPaths = true;
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -104,11 +107,12 @@ public final class Main {
             try { gateFindings = ReportDiff.compare(report, ReportIO.read(Path.of(baseline))).added(); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to use baseline: select a valid complete schema v2 report."); return 2; }
         }
-        if (output == null) render(report, format, out);
+        Report displayed = redactPaths ? SharedReport.redact(report) : report;
+        if (output == null) render(displayed, format, out);
         else {
             try (var stream = Files.newOutputStream(Path.of(output), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
                  PrintStream file = new PrintStream(stream, false, StandardCharsets.UTF_8)) {
-                render(report, format, file);
+                render(displayed, format, file);
                 if (file.checkError()) throw new IOException("Report write failed");
             } catch (IOException | IllegalArgumentException | SecurityException e) {
                 err.println("Unable to write report: use a new file in an existing writable directory. Existing files are never overwritten.");
