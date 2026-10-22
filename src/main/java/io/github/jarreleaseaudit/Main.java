@@ -11,7 +11,7 @@ import java.util.Locale;
 public final class Main {
     private static final String USAGE = """
             Usage: java -jar jar-release-audit-0.1.0.jar [options] <release.jar>
-              --format text|json|plan            Default: text; plan is deterministic Markdown
+              --format text|json|plan|sarif      Default: text; plan is deterministic Markdown
               --fail-on low|medium|high|none      Default: medium
               --output PATH                      Write a new UTF-8 report file (never overwrite)
               --max-archive-bytes N              Default: 134217728
@@ -67,7 +67,7 @@ public final class Main {
                     case "--max-scan-millis" -> scanMillis = Long.parseLong(args[++i]);
                     case "--format" -> {
                         format = args[++i];
-                        if (!format.matches("text|json|plan")) throw new IllegalArgumentException();
+                        if (!format.matches("text|json|plan|sarif")) throw new IllegalArgumentException();
                     }
                     case "--fail-on" -> {
                         threshold = args[++i];
@@ -112,6 +112,7 @@ public final class Main {
 
     private static void render(Report report, String format, PrintStream out) {
         if (format.equals("plan")) out.print(RemediationPlan.markdown(report));
+        else if (format.equals("sarif")) out.println(Sarif.render(report));
         else if (format.equals("json")) out.println(json(report));
         else {
             out.printf("JAR Release Audit: %s; %d entries; %d findings%n",

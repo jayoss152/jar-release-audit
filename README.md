@@ -126,6 +126,11 @@ rule and priority, with evidence IDs, verification steps and first-party referen
 It is not AI output. Archive names remain local report data and are escaped;
 incomplete inspection is always shown and still exits 2.
 
+`--format sarif` exports SARIF 2.1.0 with stable rule IDs, encoded logical archive
+locations and incomplete-scan notifications. No upload occurs. SARIF entry names
+can contain private information; review the artifact before sharing it. Scanner
+exit policies are unchanged by the output format.
+
 `mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
 archives. Coverage includes metadata parsing versus string literals, externalized
 values, nested Boot libraries, malformed data, budgets, deterministic/redacted

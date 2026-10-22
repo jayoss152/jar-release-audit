@@ -31,4 +31,15 @@ class RulesTest {
         var incomplete = new Report(java.util.List.of(), java.util.List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "x", "raw")), 1);
         assertTrue(RemediationPlan.markdown(incomplete).contains("INCOMPLETE"));
     }
+    @Test void sarifPreservesLevelsEncodesLocationsAndShowsIncompleteInspection() throws Exception {
+        var report = new Report(java.util.List.of(new Finding(Finding.Severity.HIGH, "PRIVATE_KEY", "lib.jar!/key space.pem", "untrusted message")),
+                java.util.List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "x", "untrusted error")), 2);
+        String json = Sarif.render(report);
+        assertTrue(Json.parse(json) instanceof java.util.Map);
+        assertTrue(json.contains("\"version\":\"2.1.0\""));
+        assertTrue(json.contains("\"level\":\"error\""));
+        assertTrue(json.contains("key%20space.pem"));
+        assertTrue(json.contains("\"executionSuccessful\":false"));
+        assertTrue(json.contains("F00001")); assertFalse(json.contains("untrusted"));
+    }
 }

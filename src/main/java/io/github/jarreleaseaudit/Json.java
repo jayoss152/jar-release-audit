@@ -113,6 +113,12 @@ final class Json {
     private void space() { while (position < text.length() && " \r\n\t".indexOf(text.charAt(position)) >= 0) position++; }
     private static IOException bad() { return new IOException("Malformed, ambiguous or over-budget JSON"); }
     static String write(Object value) { return write(value, 0); }
+    static Map<String, Object> object(Object... pairs) {
+        if (pairs.length % 2 != 0) throw new IllegalArgumentException("Expected key/value pairs");
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) result.put((String) pairs[i], pairs[i + 1]);
+        return result;
+    }
     private static String write(Object value, int depth) {
         if (depth > 32) throw new IllegalArgumentException("JSON nesting limit");
         if (value == null) return "null";
