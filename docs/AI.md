@@ -23,3 +23,22 @@ fixed actions/references plus explicitly untrusted model rationale, safe JSON
 escaping and coverage counts. It cannot replace the scan or its exit policy.
 See [the response schema](ai-response.schema.json); semantic reference checks are
 additional to that schema. Import itself performs no model call.
+
+An existing user-managed local model service can be enabled explicitly:
+
+```sh
+java -jar target/jar-release-audit-0.1.0.jar --allow-ai --ai-endpoint http://127.0.0.1:1234/v1/chat/completions --ai-model YOUR_LOCAL_MODEL --ai-output new-advice.json release.jar
+```
+
+This is a real optional chat-completions-compatible HTTP adapter, not a built-in
+model. It only accepts literal loopback addresses and the exact endpoint path;
+there are no credentials, automatic service discovery, proxies or redirects.
+Timeouts cover the whole asynchronous response, with a 64 KiB response cap.
+Tool calls/refusals/truncated output are unsupported. Tests use a controlled
+protocol stub, not model weights or a paid service. No model has been installed,
+downloaded or evaluated by this project. A local server can itself forward data;
+review its configuration before voluntarily enabling it.
+
+Valid advice never changes deterministic gates. An explicitly requested advice
+operation that fails is an operational error (exit 2); the deterministic report
+is still rendered and no fabricated successful model result is written.

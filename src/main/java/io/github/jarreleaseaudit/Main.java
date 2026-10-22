@@ -27,6 +27,9 @@ public final class Main {
               --redact-paths                     Replace paths and uncontrolled prose for local sharing
               --ai-export PATH                   Export anonymized prompt/evidence JSON locally; no network
               --ai-import PATH --ai-output PATH  Validate offline model advice into a new advisory sidecar
+              --allow-ai --ai-endpoint URL --ai-model NAME --ai-output PATH
+                                                 Explicit loopback-only model request; defaults off
+              --ai-timeout-millis N               Local model deadline, 100..60000 (default 5000)
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -47,6 +50,10 @@ public final class Main {
         boolean redactPaths = false;
         String aiExport = null;
         String aiImport = null, aiOutput = null;
+        String aiEndpoint = null, aiModel = null;
+        boolean allowAi = false;
+        long aiTimeout = 5000;
+        AiClient.Options aiOptions = null;
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -69,6 +76,10 @@ public final class Main {
                     case "--ai-export" -> aiExport = args[++i];
                     case "--ai-import" -> aiImport = args[++i];
                     case "--ai-output" -> aiOutput = args[++i];
+                    case "--allow-ai" -> allowAi = true;
+                    case "--ai-endpoint" -> aiEndpoint = args[++i];
+                    case "--ai-model" -> aiModel = args[++i];
+                    case "--ai-timeout-millis" -> aiTimeout = Long.parseLong(args[++i]);
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -96,7 +107,12 @@ public final class Main {
                 }
             }
             if ((input == null) == (fromReport == null)) throw new IllegalArgumentException();
-            if ((aiImport == null) != (aiOutput == null)) throw new IllegalArgumentException();
+            if (aiImport != null && aiEndpoint != null) throw new IllegalArgumentException();
+            if ((aiImport != null || aiEndpoint != null) != (aiOutput != null)) throw new IllegalArgumentException();
+            if (aiEndpoint != null) {
+                if (!allowAi) throw new IllegalArgumentException();
+                aiOptions = new AiClient.Options(java.net.URI.create(aiEndpoint), aiModel, aiTimeout);
+            } else if (allowAi || aiModel != null || aiTimeout != 5000) throw new IllegalArgumentException();
             limits = new JarScanner.Limits(archiveBytes, entryBytes, expandedBytes, entries, depth);
             if (scanMillis < 1 || scanMillis > 3600000) throw new IllegalArgumentException();
         } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
@@ -119,12 +135,13 @@ public final class Main {
             try { Documents.writeNew(Path.of(aiExport), AiEvidence.json(AiEvidence.from(report)) + "\n"); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to export bounded anonymized AI evidence; use a new destination file."); return 2; }
         }
-        if (aiImport != null) {
+        boolean aiFailed = false;
+        if (aiImport != null || aiOptions != null) {
             try {
                 var bundle = AiEvidence.from(report);
-                var advice = AiAdvice.parse(Documents.read(Path.of(aiImport), 65536), bundle);
+                var advice = aiOptions == null ? AiAdvice.parse(Documents.read(Path.of(aiImport), 65536), bundle) : AiClient.invoke(aiOptions, bundle);
                 Documents.writeNew(Path.of(aiOutput), AiAdvice.json(advice, bundle) + "\n");
-            } catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to validate offline model advice or write a new advisory output. Deterministic findings were not changed."); return 2; }
+            } catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Optional model assistance failed or produced invalid advice. Deterministic findings were not changed."); aiFailed = true; }
         }
         Report displayed = redactPaths ? SharedReport.redact(report) : report;
         if (output == null) render(displayed, format, out);
@@ -138,7 +155,7 @@ public final class Main {
                 return 2;
             }
         }
-        if (!report.complete()) return 2;
+        if (!report.complete() || aiFailed) return 2;
         if (threshold.equals("none")) return 0;
         Finding.Severity minimum = Finding.Severity.valueOf(threshold.toUpperCase(Locale.ROOT));
         return gateFindings.stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;
