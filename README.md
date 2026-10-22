@@ -68,6 +68,7 @@ an input filename starting with `-`.
 | `SENSITIVE_FILE` | HIGH | Review `.env`, private key and keystore filenames |
 | `SECRET_ASSIGNMENT` | HIGH | Externalize literal credential-like assignments; values are redacted |
 | `PRIVATE_KEY` | HIGH | Remove PEM private key material and rotate any real exposed credential |
+| `DEVELOPMENT_ARTIFACT` | MEDIUM | Review VCS metadata, dumps, logs, backups, mappings and source maps unintentionally packaged |
 
 Checks are heuristics. A public certificate, demo credential or deliberately
 published source can be intentional; there is no blanket automatic remediation.

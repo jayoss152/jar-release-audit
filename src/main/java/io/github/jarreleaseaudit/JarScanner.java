@@ -44,6 +44,7 @@ public final class JarScanner {
     private static final Pattern ASSIGNMENT = Pattern.compile(
             "(?im)^[ \\t]*[\\\"']?(?:[\\w.-]*[._-])?(?:password|passwd|secret|token|api[._-]?key|access[._-]?key)[\\\"']?[ \\t]*[:=][ \\t]*(.+?)[ \\t]*[,;]?[ \\t]*$");
     private static final Pattern PRIVATE_KEY = Pattern.compile("-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----");
+    private static final Pattern DEVELOPMENT = Pattern.compile("(?:^|/)(?:\\.git|\\.svn|\\.hg)(?:/|$)|\\.(?:hprof|heapdump|log|bak|orig|map)$|(?:^|/)(?:mapping\\.txt|(?:dump|backup)[^/]*\\.sql)$");
     private final Limits limits;
 
     public JarScanner() { this(Limits.defaults()); }
@@ -90,6 +91,8 @@ public final class JarScanner {
         String lower = name.replace('\\', '/').toLowerCase(Locale.ROOT);
         if (SOURCE.matcher(lower).matches())
             state.add(MEDIUM, "SOURCE_FILE", name, "Source code is packaged in the release; exclude it unless intentional.");
+        if (DEVELOPMENT.matcher(lower).find()) state.add(MEDIUM, "DEVELOPMENT_ARTIFACT", name,
+                "Development metadata, backup, log, dump or source map is packaged; review and exclude unintended release artifacts.");
         if (SENSITIVE.matcher(lower).find())
             state.add(HIGH, "SENSITIVE_FILE", name, "Potential credential or keystore file; review and exclude private material.");
         boolean privateHeader = privatePemHeader(bytes);

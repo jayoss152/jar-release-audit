@@ -17,6 +17,10 @@ potentially confidential because names can themselves contain private informatio
 
 ## Covered evidence
 
+Development-artifact names cover VCS internals, heap dumps, logs, backups, source
+maps and obvious SQL dump/backup names. Ordinary SQL migrations are not flagged
+by extension alone. Findings request review; intentional maps/resources can be valid.
+
 Private PEM headers at the start of a resource (optional UTF-8 BOM/whitespace)
 are recognized regardless of extension. This is header evidence, not key validity
 checking; arbitrary binary constant strings away from the start are not searched.

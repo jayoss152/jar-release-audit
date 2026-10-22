@@ -46,6 +46,13 @@ class StructuredConfigTest {
         assertFalse(CredentialValues.properties("# password=ignored\n! token=ignored\npassword=${PASSWORD}\nsecret="));
         assertThrows(java.io.IOException.class, () -> CredentialValues.properties("password=\\uZZZZ"));
     }
+    @Test void developmentArtifactsAreReportedWithoutFlaggingNormalMigrations() throws Exception {
+        for (String name : new String[] {".git/config", "heap.hprof", "mapping.txt", "application.properties.bak", "backup.sql", "app.js.map"}) {
+            var r = new JarScanner().scan(jar(temp, Map.of(name, bytes("synthetic"))));
+            assertEquals("DEVELOPMENT_ARTIFACT", r.findings().get(0).rule(), name);
+        }
+        assertTrue(new JarScanner().scan(jar(temp, Map.of("db/migration/V1__schema.sql", bytes("create table demo(id int)")))).findings().isEmpty());
+    }
     @Test void extensionlessPrivateHeadersAreDetectedWithoutBinaryStringFalsePositives() throws Exception {
         var r = new JarScanner().scan(jar(temp, Map.of("material", bytes("\ufeff  -----BEGIN PRIVATE KEY-----\nSYNTHETIC-NOT-A-KEY"))));
         assertEquals("PRIVATE_KEY", r.findings().get(0).rule());
