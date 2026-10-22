@@ -23,6 +23,8 @@ jobs:
           cache: maven
       - name: Build and unit tests
         run: mvn -B -ntp verify
+      - name: Verify reproducible JAR packaging
+        run: java examples/VerifyReproducible.java
       - name: Packaged CLI and synthetic demo
         shell: bash
         run: |

@@ -17,3 +17,9 @@ Checkout does not persist Git credentials, and workflow permissions stay at
 For an upgrade, resolve the official version tag, inspect that commit's manifest
 and upstream release notes, update the pinned SHA and version comment together,
 and run the full matrix. Do not bypass warnings with a runtime override.
+
+After the full build, every matrix job runs `java examples/VerifyReproducible.java`.
+It hashes the JAR, forces offline Maven JAR repackaging, and requires byte identity.
+It does not delete target files, skip the initial full tests, claim cross-JDK byte
+identity or certify an independent clean-room build. The fixed output timestamp
+is reproducible archive metadata, not a fabricated commit or maintenance date.
