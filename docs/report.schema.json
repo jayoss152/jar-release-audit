@@ -34,7 +34,7 @@
         "type": "object", "additionalProperties": false,
         "required": ["code", "entry", "message"],
         "properties": {
-          "code": {"enum": ["ENTRY_COUNT_LIMIT", "ENTRY_SIZE_LIMIT", "EXPANDED_SIZE_LIMIT", "NESTING_DEPTH_LIMIT", "AMBIGUOUS_ENTRY", "INVALID_CLASS", "INVALID_TEXT", "ARCHIVE_INTEGRITY", "ENTRY_READ_ERROR", "PATH_INVALID"]},
+          "code": {"enum": ["ENTRY_COUNT_LIMIT", "ENTRY_SIZE_LIMIT", "EXPANDED_SIZE_LIMIT", "NESTING_DEPTH_LIMIT", "AMBIGUOUS_ENTRY", "INVALID_CLASS", "INVALID_TEXT", "ARCHIVE_INTEGRITY", "ENTRY_READ_ERROR", "PATH_INVALID", "SCAN_TIME_LIMIT", "SCAN_CANCELLED"]},
           "entry": {"type": "string"}, "message": {"type": "string"}
         }
       }

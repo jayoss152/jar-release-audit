@@ -19,6 +19,7 @@ public final class Main {
               --max-expanded-bytes N             Default: 67108864
               --max-entries N                    Default: 10000
               --max-depth N                      Default: 2 (allowed: 0..8)
+              --max-scan-millis N                Default: 30000 (allowed: 1..3600000)
               --help, -h / --version
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
@@ -40,6 +41,7 @@ public final class Main {
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
         int entryBytes = defaults.maxEntryBytes(), entries = defaults.maxEntries(), depth = defaults.maxNestedDepth();
         JarScanner.Limits limits;
+        long scanMillis = 30000;
         try {
             for (int i = 0; i < args.length; i++) {
                 if (positional) {
@@ -57,6 +59,7 @@ public final class Main {
                     case "--max-expanded-bytes" -> expandedBytes = Long.parseLong(args[++i]);
                     case "--max-entries" -> entries = Integer.parseInt(args[++i]);
                     case "--max-depth" -> depth = Integer.parseInt(args[++i]);
+                    case "--max-scan-millis" -> scanMillis = Long.parseLong(args[++i]);
                     case "--format" -> {
                         String format = args[++i];
                         if (!format.equals("text") && !format.equals("json")) throw new IllegalArgumentException();
@@ -74,13 +77,14 @@ public final class Main {
             }
             if (input == null) throw new IllegalArgumentException();
             limits = new JarScanner.Limits(archiveBytes, entryBytes, expandedBytes, entries, depth);
+            if (scanMillis < 1 || scanMillis > 3600000) throw new IllegalArgumentException();
         } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
             err.println(USAGE);
             return 2;
         }
         Report report;
         try {
-            report = new JarScanner(limits).scan(Path.of(input));
+            report = new JarScanner(limits, scanMillis).scan(Path.of(input));
         } catch (IOException | IllegalArgumentException | SecurityException e) {
             err.println("Unable to inspect archive: input unavailable, invalid ZIP, or input size limit exceeded.");
             return 2;

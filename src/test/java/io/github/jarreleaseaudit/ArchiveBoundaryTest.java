@@ -40,4 +40,15 @@ class ArchiveBoundaryTest {
             assertEquals(Report.IssueCode.ARCHIVE_INTEGRITY, report.issues().get(0).code());
         }
     }
+    @Test void deadlineAndCancellationAreExplicitAndPreserveInterrupts() throws Exception {
+        Path input = jar(temp, Map.of("file.txt", bytes("safe")));
+        var clock = new java.util.concurrent.atomic.AtomicLong();
+        var scanner = new JarScanner(JarScanner.Limits.defaults(), 1, () -> clock.addAndGet(2000000));
+        assertEquals(Report.IssueCode.SCAN_TIME_LIMIT, scanner.scan(input).issues().get(0).code());
+        Thread.currentThread().interrupt();
+        try {
+            assertEquals(Report.IssueCode.SCAN_CANCELLED, new JarScanner().scan(input).issues().get(0).code());
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally { Thread.interrupted(); }
+    }
 }

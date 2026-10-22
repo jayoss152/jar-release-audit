@@ -52,6 +52,12 @@ checking; arbitrary binary constant strings away from the start are not searched
 
 ## Resource and malformed-input behavior
 
+Scans have a cooperative 30-second deadline (`--max-scan-millis`, range
+1..3600000). Entry/read checkpoints and completion check the monotonic clock;
+interruptions preserve thread status and produce `SCAN_CANCELLED`. Timeouts
+produce `SCAN_TIME_LIMIT`. This is not a hard CPU/I/O sandbox; OS limits remain
+appropriate for untrusted archives.
+
 Defaults: input file at most 128 MiB, each expanded entry at most 8 MiB, total read
 expanded bytes at most 64 MiB, 10,000 entries (directories included), nesting at
 most two levels. Nested archive bytes count once as their parent entry and again

@@ -46,9 +46,18 @@ public final class JarScanner {
     private static final Pattern PRIVATE_KEY = Pattern.compile("-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----");
     private static final Pattern DEVELOPMENT = Pattern.compile("(?:^|/)(?:\\.git|\\.svn|\\.hg)(?:/|$)|\\.(?:hprof|heapdump|log|bak|orig|map)$|(?:^|/)(?:mapping\\.txt|(?:dump|backup)[^/]*\\.sql)$");
     private final Limits limits;
+    private final long maxScanMillis;
+    private final java.util.function.LongSupplier clock;
 
     public JarScanner() { this(Limits.defaults()); }
-    public JarScanner(Limits limits) { this.limits = java.util.Objects.requireNonNull(limits); }
+    public JarScanner(Limits limits) { this(limits, 30000); }
+    public JarScanner(Limits limits, long maxScanMillis) { this(limits, maxScanMillis, System::nanoTime); }
+    JarScanner(Limits limits, long maxScanMillis, java.util.function.LongSupplier clock) {
+        if (maxScanMillis < 1 || maxScanMillis > 3600000) throw new IllegalArgumentException("Invalid scan deadline");
+        this.limits = java.util.Objects.requireNonNull(limits);
+        this.maxScanMillis = maxScanMillis;
+        this.clock = java.util.Objects.requireNonNull(clock);
+    }
 
     public Report scan(Path archive) throws IOException {
         if (!Files.isRegularFile(archive)) throw new IOException("Input must be a regular file");
@@ -75,6 +84,7 @@ public final class JarScanner {
                     if (entry.getSize() != content.length || entry.getCrc() != crc.getValue())
                         throw new ScanProblem(ARCHIVE_INTEGRITY, "Outer entry size or CRC does not match its directory.");
                     if (!entry.isDirectory()) inspect(entry.getName(), content, 0, state);
+                    if (!state.allowed(entry.getName())) break;
                     if (state.exhausted) break;
                 } catch (IOException | IllegalArgumentException e) {
                     state.issue(entry.getName(), e);
@@ -264,8 +274,19 @@ public final class JarScanner {
         int entries;
         long expanded;
         boolean exhausted;
+        final long started = clock.getAsLong();
+
+        void check() throws ScanProblem {
+            if (Thread.currentThread().isInterrupted()) throw new ScanProblem(SCAN_CANCELLED, "Scan was cancelled; interrupt status is preserved.");
+            if (clock.getAsLong() - started >= maxScanMillis * 1000000L) throw new ScanProblem(SCAN_TIME_LIMIT, "Cooperative scan deadline reached.");
+        }
+        boolean allowed(String name) {
+            try { check(); return true; }
+            catch (ScanProblem e) { issue(name, e); exhausted = true; return false; }
+        }
 
         boolean count(String name) {
+            if (!allowed(name)) return false;
             if (entries >= limits.maxEntries()) {
                 issue(ENTRY_COUNT_LIMIT, name, "Entry count limit reached; remaining entries were not inspected.");
                 exhausted = true;
@@ -280,6 +301,7 @@ public final class JarScanner {
             byte[] buffer = new byte[8192];
             int n;
             while ((n = in.read(buffer)) != -1) {
+                try { check(); } catch (ScanProblem e) { exhausted = true; throw e; }
                 expanded += n;
                 if (expanded > limits.maxExpandedBytes()) {
                     exhausted = true;

@@ -14,7 +14,7 @@ public record Report(List<Finding> findings, List<Issue> issues, int entriesScan
 
     public enum IssueCode {
         ENTRY_COUNT_LIMIT, ENTRY_SIZE_LIMIT, EXPANDED_SIZE_LIMIT, NESTING_DEPTH_LIMIT,
-        AMBIGUOUS_ENTRY, INVALID_CLASS, INVALID_TEXT, ARCHIVE_INTEGRITY, ENTRY_READ_ERROR, PATH_INVALID
+        AMBIGUOUS_ENTRY, INVALID_CLASS, INVALID_TEXT, ARCHIVE_INTEGRITY, ENTRY_READ_ERROR, PATH_INVALID, SCAN_TIME_LIMIT, SCAN_CANCELLED
     }
 
     public record Issue(IssueCode code, String entry, String message) { }
