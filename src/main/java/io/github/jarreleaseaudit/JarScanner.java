@@ -105,9 +105,14 @@ public final class JarScanner {
             catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "Text encoding is malformed or unsupported."); }
             if (PRIVATE_KEY.matcher(text).find())
                 state.add(HIGH, "PRIVATE_KEY", name, "Private key marker found; remove it and rotate any real exposed key.");
-            var matcher = ASSIGNMENT.matcher(text);
-            while (matcher.find()) {
-                if (literalValue(matcher.group(1))) {
+            boolean structuredSecret = false;
+            if (lower.endsWith(".json")) {
+                try { structuredSecret = CredentialValues.json(text); }
+                catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "JSON resource is malformed or exceeds parser limits."); }
+            }
+            var matcher = ASSIGNMENT.matcher(lower.endsWith(".json") ? "" : text);
+            while (structuredSecret || matcher.find()) {
+                if (structuredSecret || literalValue(matcher.group(1))) {
                     state.add(HIGH, "SECRET_ASSIGNMENT", name,
                             "Potential literal credential assignment; externalize real credentials. Value redacted.");
                     break;
@@ -213,7 +218,7 @@ public final class JarScanner {
         return normalized; // Deliberately case-sensitive, like Java resource lookup.
     }
 
-    private static boolean literalValue(String raw) {
+    static boolean literalValue(String raw) {
         String value = raw.strip().replaceFirst("[,;]$", "").strip();
         boolean quoted = value.length() >= 2 && ((value.startsWith("\"") && value.endsWith("\""))
                 || (value.startsWith("'") && value.endsWith("'")));

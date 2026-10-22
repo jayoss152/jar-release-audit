@@ -65,6 +65,11 @@ OS/container memory and time limits for untrusted inputs. Do not run as administ
 
 ## Deliberate gaps
 
+JSON credential resources are parsed structurally, including arrays and escaped
+keys. The strict parser rejects duplicate keys, invalid Unicode, depth above 32,
+more than 10,000 values or more than 1 MiB of text. These are incomplete scans;
+JSON values are never echoed. Other formats retain their documented heuristics.
+
 Absolute/drive-qualified paths, traversal segments, control/format characters and
 literal nested-archive delimiters in entry names yield `PATH_INVALID` and an
 incomplete scan. This avoids consumer-dependent path and evidence interpretation;
