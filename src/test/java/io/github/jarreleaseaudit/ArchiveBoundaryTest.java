@@ -26,4 +26,18 @@ class ArchiveBoundaryTest {
         var limited = new JarScanner(new JarScanner.Limits(10000, 10000, 10000, 100, 0));
         assertFalse(limited.scan(jar(temp, Map.of("payload.dat", zip(Map.of())))).complete());
     }
+    @Test void dataDescriptorPayloadMustAgreeWithCentralDirectory() throws Exception {
+        for (int field : new int[] {16, 20, 24}) {
+            byte[] nested = zip(Map.of("config.txt", bytes("safe content")));
+            for (int i = 0; i + 46 < nested.length; i++) {
+                if (nested[i] == 'P' && nested[i + 1] == 'K' && nested[i + 2] == 1 && nested[i + 3] == 2) {
+                    nested[i + field] ^= 1;
+                    break;
+                }
+            }
+            var report = new JarScanner().scan(jar(temp, Map.of("nested.jar", nested)));
+            assertFalse(report.complete());
+            assertEquals(Report.IssueCode.ARCHIVE_INTEGRITY, report.issues().get(0).code());
+        }
+    }
 }

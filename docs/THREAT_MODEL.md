@@ -52,6 +52,8 @@ Nested ZIP64, split archives and self-extracting/prefixed nested ZIPs are unsupp
 Nested archives require a consistent end record, central-directory structure,
 local-header names, flags, methods, offsets and declared sizes/checksums. The
 streamed entry count must match the central directory. Encrypted nested entries
+are unsupported. Expanded size, compressed size and CRC from each fully streamed
+nested payload must also match its central entry, including data-descriptor ZIPs;
 are unsupported and produce an incomplete result;
 the streaming reader checks entry payloads. This is not a forensic ZIP validator,
 nor a cryptographic signature verifier. Outer entry expanded size and CRC-32 are

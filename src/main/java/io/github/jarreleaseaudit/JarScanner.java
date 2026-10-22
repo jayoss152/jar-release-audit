@@ -12,6 +12,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -118,8 +120,8 @@ public final class JarScanner {
                 return;
             }
             // ZipInputStream alone accepts arbitrary non-ZIP input as an empty archive.
-            int expectedEntries;
-            try { expectedEntries = validateNestedZip(bytes); }
+            ZipDirectory directory;
+            try { directory = validateNestedZip(bytes); }
             catch (IOException e) { throw new ScanProblem(ARCHIVE_INTEGRITY, "Nested ZIP directory or headers are invalid or unsupported."); }
             try (ZipInputStream nested = new ZipInputStream(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
                 Set<String> names = new HashSet<>();
@@ -133,22 +135,28 @@ public final class JarScanner {
                         throw new ScanProblem(PATH_INVALID, "Nested entry path is unsafe or ambiguous.");
                     if (!names.add(canonicalName(entry.getName())))
                         throw new ScanProblem(AMBIGUOUS_ENTRY, "Duplicate or ambiguous nested entry name.");
-                    if (!entry.isDirectory()) {
-                        try {
-                            inspect(child, state.read(nested), depth + 1, state);
-                        } catch (IOException e) {
-                            state.issue(child, e);
-                            if (state.exhausted) return;
-                        }
-                    } else state.read(nested); // Even directory payloads must consume the expansion budget.
+                    try {
+                        byte[] content = state.read(nested);
+                        CentralEntry expected = directory.entries().get(entry.getName());
+                        if (expected == null || expected.size() != content.length || expected.crc() != entry.getCrc()
+                                || expected.compressedSize() != entry.getCompressedSize())
+                            throw new ScanProblem(ARCHIVE_INTEGRITY, "Nested payload size or CRC does not match its central directory.");
+                        if (!entry.isDirectory()) inspect(child, content, depth + 1, state);
+                    } catch (IOException e) {
+                        state.issue(child, e);
+                        if (state.exhausted) return;
+                    }
                     nested.closeEntry();
                 }
-                if (seen != expectedEntries) throw new ScanProblem(ARCHIVE_INTEGRITY, "Nested directory entry count mismatch.");
+                if (seen != directory.count()) throw new ScanProblem(ARCHIVE_INTEGRITY, "Nested directory entry count mismatch.");
             }
         }
     }
 
-    private static int validateNestedZip(byte[] b) throws IOException {
+    private record CentralEntry(long size, long compressedSize, long crc) { }
+    private record ZipDirectory(int count, Map<String, CentralEntry> entries) { }
+
+    private static ZipDirectory validateNestedZip(byte[] b) throws IOException {
         // Require an end record and a bounded, consistent central directory. ZIP64 and
         // split nested archives are deliberately unsupported and yield INCOMPLETE.
         for (int end = b.length - 22; end >= Math.max(0, b.length - 65_557); end--) {
@@ -156,6 +164,7 @@ public final class JarScanner {
             if (u16(b, end + 4) != 0 || u16(b, end + 6) != 0
                     || u16(b, end + 8) != u16(b, end + 10)) break;
             int count = u16(b, end + 10);
+            Map<String, CentralEntry> directory = new HashMap<>();
             long size = u32(b, end + 12), offset = u32(b, end + 16);
             if (count == 65535 || offset + size != end || offset > b.length) break;
             long cursor = offset;
@@ -179,10 +188,13 @@ public final class JarScanner {
                 if ((flags & 8) == 0 && (u32(b, h + 14) != u32(b, p + 16)
                         || u32(b, h + 18) != compressed || u32(b, h + 22) != u32(b, p + 24)))
                     throw new IOException("Inconsistent nested entry sizes or checksum");
+                String entryName = new String(b, p + 46, nameLength, StandardCharsets.UTF_8);
+                if (directory.putIfAbsent(entryName, new CentralEntry(u32(b, p + 24), compressed, u32(b, p + 16))) != null)
+                    throw new IOException("Duplicate central directory name");
                 cursor = next;
             }
             if (cursor != end || (count > 0 && u32(b, 0) != 0x04034b50L)) break;
-            return count;
+            return new ZipDirectory(count, Map.copyOf(directory));
         }
         throw new IOException("Invalid or unsupported nested ZIP");
     }
