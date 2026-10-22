@@ -112,7 +112,7 @@ public final class JarScanner {
                 }
             }
         }
-        if (lower.endsWith(".jar") || lower.endsWith(".zip")) {
+        if (lower.endsWith(".jar") || lower.endsWith(".zip") || zipMagic(bytes)) {
             if (depth >= limits.maxNestedDepth()) {
                 state.issue(NESTING_DEPTH_LIMIT, name, "Nested archive depth limit reached; contents were not inspected.");
                 return;
@@ -185,6 +185,11 @@ public final class JarScanner {
             return count;
         }
         throw new IOException("Invalid or unsupported nested ZIP");
+    }
+
+    private static boolean zipMagic(byte[] b) {
+        return b.length >= 4 && b[0] == 'P' && b[1] == 'K'
+                && ((b[2] == 3 && b[3] == 4) || (b[2] == 5 && b[3] == 6) || (b[2] == 7 && b[3] == 8));
     }
 
     private static int u16(byte[] b, int p) { return (b[p] & 255) | ((b[p + 1] & 255) << 8); }

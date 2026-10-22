@@ -34,7 +34,8 @@ potentially confidential because names can themselves contain private informatio
   Malformed text, UTF-32 and NUL-containing resources are incomplete scans;
   BOM-less UTF-16 and legacy encodings are unsupported. Invalid bytes are never
   silently replaced before checking credential assignments.
-* Nested `.jar` and `.zip` entries, including `BOOT-INF/lib`, up to depth 2. Depth
+* Nested `.jar` / `.zip` entries and ZIP signatures under other extensions,
+  including `BOOT-INF/lib`, up to depth 2. Depth
   zero is the input archive. `BOOT-INF/classes` is inspected like any other path.
 
 ## Resource and malformed-input behavior

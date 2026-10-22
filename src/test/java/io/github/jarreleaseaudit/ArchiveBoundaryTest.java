@@ -18,4 +18,12 @@ class ArchiveBoundaryTest {
         }
         assertTrue(new JarScanner().scan(jar(temp, Map.of("normal/file.txt", bytes("x")))).complete());
     }
+    @Test void archiveMagicFindsDisguisedNestedContent() throws Exception {
+        var report = new JarScanner().scan(jar(temp, Map.of("payload.bin", zip(Map.of("Hidden.java", bytes("class Hidden {}"))))));
+        assertTrue(report.complete());
+        assertEquals("payload.bin!/Hidden.java", report.findings().get(0).entry());
+        assertTrue(new JarScanner().scan(jar(temp, Map.of("image.bin", new byte[] {(byte) 0x89, 'P', 'N', 'G'}))).findings().isEmpty());
+        var limited = new JarScanner(new JarScanner.Limits(10000, 10000, 10000, 100, 0));
+        assertFalse(limited.scan(jar(temp, Map.of("payload.dat", zip(Map.of())))).complete());
+    }
 }
