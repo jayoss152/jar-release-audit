@@ -62,6 +62,11 @@ OS/container memory and time limits for untrusted inputs. Do not run as administ
 
 ## Deliberate gaps
 
+Absolute/drive-qualified paths, traversal segments, control/format characters and
+literal nested-archive delimiters in entry names yield `PATH_INVALID` and an
+incomplete scan. This avoids consumer-dependent path and evidence interpretation;
+the scanner still never extracts entries.
+
 Duplicate names, slash/backslash aliases and leading `./` aliases within an
 archive make the scan incomplete because consumers can disagree about which
 entry is selected. Names remain case-sensitive. No archive paths are extracted.

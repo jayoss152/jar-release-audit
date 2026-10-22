@@ -57,6 +57,10 @@ public final class JarScanner {
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
                 if (!state.count(entry.getName())) break;
+                if (ArchivePaths.unsafe(entry.getName())) {
+                    state.issue(PATH_INVALID, entry.getName(), "Archive path is unsafe or ambiguous; entry was not inspected.");
+                    continue;
+                }
                 if (!names.add(canonicalName(entry.getName()))) {
                     state.issue(AMBIGUOUS_ENTRY, entry.getName(), "Duplicate or ambiguous archive entry name; contents are not trustworthy.");
                     continue;
@@ -125,6 +129,8 @@ public final class JarScanner {
                     seen++;
                     String child = name + "!/" + entry.getName();
                     if (!state.count(child)) return;
+                    if (ArchivePaths.unsafe(entry.getName()))
+                        throw new ScanProblem(PATH_INVALID, "Nested entry path is unsafe or ambiguous.");
                     if (!names.add(canonicalName(entry.getName())))
                         throw new ScanProblem(AMBIGUOUS_ENTRY, "Duplicate or ambiguous nested entry name.");
                     if (!entry.isDirectory()) {
