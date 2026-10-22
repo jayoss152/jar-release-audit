@@ -22,6 +22,7 @@ public final class Main {
               --max-scan-millis N                Default: 30000 (allowed: 1..3600000)
               --help, -h / --version
               --list-rules                       List deterministic guidance and stable rule IDs
+              --from-report PATH                 Import a validated schema v2 report instead of a JAR
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -37,6 +38,7 @@ public final class Main {
         String threshold = "medium";
         String input = null;
         String output = null;
+        String fromReport = null;
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -53,6 +55,7 @@ public final class Main {
                 switch (args[i]) {
                     case "--" -> positional = true;
                     case "--output" -> output = args[++i];
+                    case "--from-report" -> fromReport = args[++i];
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -79,7 +82,7 @@ public final class Main {
                     }
                 }
             }
-            if (input == null) throw new IllegalArgumentException();
+            if ((input == null) == (fromReport == null)) throw new IllegalArgumentException();
             limits = new JarScanner.Limits(archiveBytes, entryBytes, expandedBytes, entries, depth);
             if (scanMillis < 1 || scanMillis > 3600000) throw new IllegalArgumentException();
         } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
@@ -88,7 +91,7 @@ public final class Main {
         }
         Report report;
         try {
-            report = new JarScanner(limits, scanMillis).scan(Path.of(input));
+            report = fromReport == null ? new JarScanner(limits, scanMillis).scan(Path.of(input)) : ReportIO.read(Path.of(fromReport));
         } catch (IOException | IllegalArgumentException | SecurityException e) {
             err.println("Unable to inspect archive: input unavailable, invalid ZIP, or input size limit exceeded.");
             return 2;

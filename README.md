@@ -131,6 +131,12 @@ locations and incomplete-scan notifications. No upload occurs. SARIF entry names
 can contain private information; review the artifact before sharing it. Scanner
 exit policies are unchanged by the output format.
 
+`--from-report scan.json --format plan` reuses a local schema v2 report without
+reopening a JAR. Imports are limited to 1 MiB and validate types, known rules,
+severities, summaries and completeness. Imported prose is replaced with fixed
+catalog guidance. Import is not cryptographic verification or a new artifact scan;
+the selected report must come from a source you trust.
+
 `mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
 archives. Coverage includes metadata parsing versus string literals, externalized
 values, nested Boot libraries, malformed data, budgets, deterministic/redacted
