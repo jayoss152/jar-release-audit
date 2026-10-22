@@ -34,6 +34,8 @@ checking; arbitrary binary constant strings away from the start are not searched
   LocalVariableTable, LocalVariableTypeTable and MethodParameters. Attribute names
   found only in constant-pool strings do not count. This parser is a metadata reader,
   not a complete JVM class verifier.
+  Known debug tables must have valid lengths, UTF-8 constant references, expected
+  locations and permitted multiplicity; a name alone no longer validates its body.
 * Potential private credential files: `.env*`, `id_rsa`, `id_ed25519`, `.key`,
   `.p12`, `.pfx`, `.jks` and `.keystore`. Some are intentional public/demo resources.
 * UTF-8 text (with or without BOM), and BOM-marked UTF-16LE/BE resources, with properties/YAML-like credential assignments and PEM
