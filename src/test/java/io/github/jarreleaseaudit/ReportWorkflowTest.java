@@ -23,4 +23,22 @@ class ReportWorkflowTest {
         Files.writeString(report, " ".repeat(1048577));
         assertThrows(IOException.class, () -> ReportIO.read(report));
     }
+    @Test void baselinesGateOnlyNewFindingsAndNeverHideIncompleteInspection() throws Exception {
+        Report old = sample();
+        var newFinding = new Finding(Finding.Severity.MEDIUM, "SOURCE_FILE", "New.java", "fixed");
+        var current = new Report(List.of(old.findings().get(0), newFinding), List.of(), 2);
+        var delta = ReportDiff.compare(current, old);
+        assertEquals(List.of(newFinding), delta.added()); assertEquals(1, delta.unchanged());
+        assertEquals(old.findings(), ReportDiff.compare(new Report(List.of(), List.of(), 1), old).resolved());
+        Path baseline = temp.resolve("accepted.json"), input = temp.resolve("current.json");
+        Files.writeString(baseline, Main.json(old)); Files.writeString(input, Main.json(old));
+        var out = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[] {"--from-report", input.toString(), "--baseline", baseline.toString()}, new PrintStream(out), System.err));
+        assertTrue(out.toString().contains("PRIVATE_KEY"));
+        Files.writeString(input, Main.json(current));
+        assertEquals(1, Main.run(new String[] {"--from-report", input.toString(), "--baseline", baseline.toString()}, new PrintStream(new ByteArrayOutputStream()), System.err));
+        var incomplete = new Report(old.findings(), List.of(new Report.Issue(Report.IssueCode.INVALID_TEXT, "x", "fixed")), 2);
+        Files.writeString(input, Main.json(incomplete));
+        assertEquals(2, Main.run(new String[] {"--from-report", input.toString(), "--baseline", baseline.toString(), "--fail-on", "none"}, new PrintStream(new ByteArrayOutputStream()), System.err));
+    }
 }

@@ -137,6 +137,12 @@ severities, summaries and completeness. Imported prose is replaced with fixed
 catalog guidance. Import is not cryptographic verification or a new artifact scan;
 the selected report must come from a source you trust.
 
+`--baseline accepted.json` optionally gates only findings new relative to an
+explicitly accepted complete v2 report. Matching uses rule, severity and exact
+logical entry path. The output still contains **all current evidence**; baselines
+do not make findings safe, and incomplete scans always exit 2. Review baseline
+changes as security-relevant policy decisions; model advice cannot update them.
+
 `mvn -B verify` runs JUnit tests using real compiler-generated classes and synthetic
 archives. Coverage includes metadata parsing versus string literals, externalized
 values, nested Boot libraries, malformed data, budgets, deterministic/redacted

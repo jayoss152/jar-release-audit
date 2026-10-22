@@ -23,6 +23,7 @@ public final class Main {
               --help, -h / --version
               --list-rules                       List deterministic guidance and stable rule IDs
               --from-report PATH                 Import a validated schema v2 report instead of a JAR
+              --baseline PATH                    Fail on new findings; all evidence stays in the report
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -39,6 +40,7 @@ public final class Main {
         String input = null;
         String output = null;
         String fromReport = null;
+        String baseline = null;
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -56,6 +58,7 @@ public final class Main {
                     case "--" -> positional = true;
                     case "--output" -> output = args[++i];
                     case "--from-report" -> fromReport = args[++i];
+                    case "--baseline" -> baseline = args[++i];
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -96,6 +99,11 @@ public final class Main {
             err.println("Unable to inspect archive: input unavailable, invalid ZIP, or input size limit exceeded.");
             return 2;
         }
+        java.util.List<Finding> gateFindings = report.findings();
+        if (baseline != null) {
+            try { gateFindings = ReportDiff.compare(report, ReportIO.read(Path.of(baseline))).added(); }
+            catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to use baseline: select a valid complete schema v2 report."); return 2; }
+        }
         if (output == null) render(report, format, out);
         else {
             try (var stream = Files.newOutputStream(Path.of(output), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
@@ -110,7 +118,7 @@ public final class Main {
         if (!report.complete()) return 2;
         if (threshold.equals("none")) return 0;
         Finding.Severity minimum = Finding.Severity.valueOf(threshold.toUpperCase(Locale.ROOT));
-        return report.findings().stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;
+        return gateFindings.stream().anyMatch(f -> f.severity().ordinal() >= minimum.ordinal()) ? 1 : 0;
     }
 
     private static void render(Report report, String format, PrintStream out) {
