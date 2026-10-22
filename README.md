@@ -124,6 +124,10 @@ executable JAR.
 Optional model assistance is documented in [AI.md](docs/AI.md). AI defaults off;
 `--ai-export new-prompt.json` only exports a privacy-reduced bundle locally and
 does not run a model. Deterministic catalog/plan functions are labelled separately.
+The [operator walkthrough](docs/OPERATIONS.md) covers end-to-end offline review,
+optional local service consent, replay/caching, gate policies and a runnable
+synthetic protocol demonstration. It distinguishes mocked tests from genuine
+user-enabled model inference and documents every failure mode.
 
 `--format plan` generates a deterministic Markdown remediation plan grouped by
 rule and priority, with evidence IDs, verification steps and first-party references.

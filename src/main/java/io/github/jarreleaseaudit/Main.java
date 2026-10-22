@@ -46,7 +46,8 @@ public final class Main {
                 new PrintStream(System.err, true, StandardCharsets.UTF_8)));
     }
 
-    static int run(String[] args, PrintStream out, PrintStream err) {
+    /** Embedding entry point: returns the CLI status without terminating the caller's JVM. */
+    public static int run(String[] args, PrintStream out, PrintStream err) {
         String format = "text";
         String threshold = "medium";
         String input = null;

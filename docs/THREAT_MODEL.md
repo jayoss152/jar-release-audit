@@ -9,8 +9,10 @@ an artifact they own or are authorized to inspect. It does not prevent reverse
 engineering. Shipping secrets, encryption keys, or critical trust decisions in a
 client is not made safe by obfuscation.
 
-The CLI reads an archive locally. It never executes class files, extracts archive
-entries to the filesystem, rewrites an input, or calls a network service. Build tools
+The scanner reads an archive locally. It never executes class files, extracts archive
+entries to the filesystem, rewrites an input, or calls a network service. Optional
+CLI model assistance is separate, defaults off, and only sends anonymized evidence
+after explicit loopback-service consent; see [AI.md](AI.md). Build tools
 download their own dependencies separately. Archive names and paths appear in
 reports; matched config values and class string constants do not. Treat reports as
 potentially confidential because names can themselves contain private information.
@@ -112,8 +114,8 @@ archive make the scan incomplete because consumers can disagree about which
 entry is selected. Names remain case-sensitive. No archive paths are extracted.
 
 No dataflow/entropy analysis, encrypted or encoded secret detection, arbitrary
-binary/class constant scanning, multiline or fully parsed JSON/YAML/XML secret
-analysis, certificate validity checks, dependency vulnerability scanning, license
+binary/class constant scanning, full YAML alias/tag evaluation, arbitrary
+configuration dataflow analysis, certificate validity checks, dependency vulnerability scanning, license
 auditing, signature validation, native/Dex inspection, malicious-code detection,
 or automatic patching. A report with no findings is **not a security guarantee**.
 Not all archive formats, language metadata or future class attributes are covered.

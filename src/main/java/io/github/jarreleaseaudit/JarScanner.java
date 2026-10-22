@@ -92,6 +92,7 @@ public final class JarScanner {
                 }
             }
         }
+        if (!state.exhausted) state.allowed("<archive>"); // Empty archives also honor cancellation/deadlines.
         state.findings.sort(Comparator.comparing(Finding::entry).thenComparing(Finding::rule));
         state.issues.sort(Comparator.comparing(Report.Issue::entry).thenComparing(Report.Issue::message));
         return new Report(state.findings, state.issues, state.entries);

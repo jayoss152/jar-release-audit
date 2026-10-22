@@ -42,12 +42,14 @@ class ArchiveBoundaryTest {
     }
     @Test void deadlineAndCancellationAreExplicitAndPreserveInterrupts() throws Exception {
         Path input = jar(temp, Map.of("file.txt", bytes("safe")));
+        Path empty = jar(temp, Map.of());
         var clock = new java.util.concurrent.atomic.AtomicLong();
         var scanner = new JarScanner(JarScanner.Limits.defaults(), 1, () -> clock.addAndGet(2000000));
         assertEquals(Report.IssueCode.SCAN_TIME_LIMIT, scanner.scan(input).issues().get(0).code());
         Thread.currentThread().interrupt();
         try {
             assertEquals(Report.IssueCode.SCAN_CANCELLED, new JarScanner().scan(input).issues().get(0).code());
+            assertEquals(Report.IssueCode.SCAN_CANCELLED, new JarScanner().scan(empty).issues().get(0).code());
             assertTrue(Thread.currentThread().isInterrupted());
         } finally { Thread.interrupted(); }
     }

@@ -25,6 +25,8 @@ jobs:
         run: mvn -B -ntp verify
       - name: Verify reproducible JAR packaging
         run: java examples/VerifyReproducible.java
+      - name: Verify synthetic optional model workflow
+        run: java --class-path target/jar-release-audit-0.1.0.jar examples/ModelProtocolDemo.java
       - name: Packaged CLI and synthetic demo
         shell: bash
         run: |
