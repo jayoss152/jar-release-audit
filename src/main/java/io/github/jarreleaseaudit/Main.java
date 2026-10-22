@@ -25,6 +25,7 @@ public final class Main {
               --from-report PATH                 Import a validated schema v2 report instead of a JAR
               --baseline PATH                    Fail on new findings; all evidence stays in the report
               --redact-paths                     Replace paths and uncontrolled prose for local sharing
+              --ai-export PATH                   Export anonymized prompt/evidence JSON locally; no network
               --                                 End options (for input names starting with -)
             Byte limits are positive decimal integers; incomplete scans always exit 2.
             """;
@@ -43,6 +44,7 @@ public final class Main {
         String fromReport = null;
         String baseline = null;
         boolean redactPaths = false;
+        String aiExport = null;
         boolean positional = false;
         JarScanner.Limits defaults = JarScanner.Limits.defaults();
         long archiveBytes = defaults.maxArchiveBytes(), expandedBytes = defaults.maxExpandedBytes();
@@ -62,6 +64,7 @@ public final class Main {
                     case "--from-report" -> fromReport = args[++i];
                     case "--baseline" -> baseline = args[++i];
                     case "--redact-paths" -> redactPaths = true;
+                    case "--ai-export" -> aiExport = args[++i];
                     case "--help", "-h" -> { out.println(USAGE); return 0; }
                     case "--version" -> { out.println("jar-release-audit 0.1.0"); return 0; }
                     case "--list-rules" -> {
@@ -106,6 +109,10 @@ public final class Main {
         if (baseline != null) {
             try { gateFindings = ReportDiff.compare(report, ReportIO.read(Path.of(baseline))).added(); }
             catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to use baseline: select a valid complete schema v2 report."); return 2; }
+        }
+        if (aiExport != null) {
+            try { Documents.writeNew(Path.of(aiExport), AiEvidence.json(AiEvidence.from(report)) + "\n"); }
+            catch (IOException | IllegalArgumentException | SecurityException e) { err.println("Unable to export bounded anonymized AI evidence; use a new destination file."); return 2; }
         }
         Report displayed = redactPaths ? SharedReport.redact(report) : report;
         if (output == null) render(displayed, format, out);

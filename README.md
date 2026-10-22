@@ -121,6 +121,10 @@ executable JAR.
 
 ## Development
 
+Optional model assistance is documented in [AI.md](docs/AI.md). AI defaults off;
+`--ai-export new-prompt.json` only exports a privacy-reduced bundle locally and
+does not run a model. Deterministic catalog/plan functions are labelled separately.
+
 `--format plan` generates a deterministic Markdown remediation plan grouped by
 rule and priority, with evidence IDs, verification steps and first-party references.
 It is not AI output. Archive names remain local report data and are escaped;
