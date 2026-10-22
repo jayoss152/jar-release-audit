@@ -17,6 +17,7 @@ potentially confidential because names can themselves contain private informatio
 
 ## Covered evidence
 
+
 * Source extensions: Java, Kotlin (including scripts), Scala and Groovy.
 * Actual class attributes: SourceFile, SourceDebugExtension, LineNumberTable,
   LocalVariableTable, LocalVariableTypeTable and MethodParameters. Attribute names
@@ -77,6 +78,10 @@ Java Properties parsing honors escaped keys, continuations, whitespace separator
 and full-line comments. Every assignment is checked even when overwritten later.
 Quotes, `null`, `~` and an inline `#` are literal Properties values, not YAML
 null/comment syntax. A malformed escape or more than 1 MiB is incomplete.
+YAML credential scalars support quoted values, comments and indented literal or
+folded blocks. Empty/null scalars and reference-only blocks are excluded. This is
+not a complete YAML parser: aliases, tags and merge semantics are not resolved.
+Unsupported credential block syntax/indentation or more than 1 MiB is incomplete.
 
 Absolute/drive-qualified paths, traversal segments, control/format characters and
 literal nested-archive delimiters in entry names yield `PATH_INVALID` and an

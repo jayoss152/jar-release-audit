@@ -115,8 +115,11 @@ public final class JarScanner {
             } else if (lower.endsWith(".properties")) {
                 try { structuredSecret = CredentialValues.properties(text); }
                 catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "Properties resource is malformed or exceeds parser limits."); }
+            } else if (lower.endsWith(".yml") || lower.endsWith(".yaml")) {
+                try { structuredSecret = YamlCredentials.inspect(text); }
+                catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "YAML scalar syntax is unsupported or exceeds parser limits."); }
             }
-            var matcher = ASSIGNMENT.matcher(lower.endsWith(".json") || lower.endsWith(".xml") || lower.endsWith(".properties") ? "" : text);
+            var matcher = ASSIGNMENT.matcher(lower.matches("(?s).*\\.(json|xml|properties|yml|yaml)$") ? "" : text);
             while (structuredSecret || matcher.find()) {
                 if (structuredSecret || literalValue(matcher.group(1))) {
                     state.add(HIGH, "SECRET_ASSIGNMENT", name,
@@ -215,6 +218,7 @@ public final class JarScanner {
                 && ((b[2] == 3 && b[3] == 4) || (b[2] == 5 && b[3] == 6) || (b[2] == 7 && b[3] == 8));
     }
 
+
     private static int u16(byte[] b, int p) { return (b[p] & 255) | ((b[p + 1] & 255) << 8); }
     private static long u32(byte[] b, int p) { return (long) u16(b, p) | ((long) u16(b, p + 2) << 16); }
 
@@ -229,7 +233,7 @@ public final class JarScanner {
         boolean quoted = value.length() >= 2 && ((value.startsWith("\"") && value.endsWith("\""))
                 || (value.startsWith("'") && value.endsWith("'")));
         if (quoted) value = value.substring(1, value.length() - 1).strip();
-        if (value.isEmpty() || (value.startsWith("#") && !value.startsWith("#{"))) return false;
+        if (value.isEmpty() || (!quoted && value.startsWith("#") && !value.startsWith("#{"))) return false;
         if (!quoted && (value.equals("null") || value.equals("~"))) return false;
         // Only a whole reference with no nonempty fallback is known to be external.
         // Defaults, concatenation and arbitrary SpEL can still disclose literals.

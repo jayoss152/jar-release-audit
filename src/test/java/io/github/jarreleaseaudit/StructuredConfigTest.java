@@ -46,4 +46,13 @@ class StructuredConfigTest {
         assertFalse(CredentialValues.properties("# password=ignored\n! token=ignored\npassword=${PASSWORD}\nsecret="));
         assertThrows(java.io.IOException.class, () -> CredentialValues.properties("password=\\uZZZZ"));
     }
+    @Test void yamlCredentialBlocksRespectIndentationAndComments() throws Exception {
+        assertTrue(YamlCredentials.inspect("service:\n  password: |-\n    synthetic-value\nother: safe"));
+        assertTrue(YamlCredentials.inspect("password: >+\n  #literal-block-value\n"));
+        assertTrue(YamlCredentials.inspect("password: \"#literal\" # comment"));
+        assertFalse(YamlCredentials.inspect("password: |\n\nother: safe"));
+        assertFalse(YamlCredentials.inspect("password: |\n  ${PASSWORD}\n"));
+        assertFalse(YamlCredentials.inspect("password: # just a comment\ntoken: null"));
+        assertThrows(java.io.IOException.class, () -> YamlCredentials.inspect("password: |invalid"));
+    }
 }

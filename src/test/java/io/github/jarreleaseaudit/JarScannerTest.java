@@ -56,7 +56,7 @@ class JarScannerTest {
 
     @Test void unicodeBomResourcesAreInspectedWithoutLeakingValues() throws Exception {
         for (var charset : new java.nio.charset.Charset[] {StandardCharsets.UTF_8, StandardCharsets.UTF_16LE, StandardCharsets.UTF_16BE}) {
-            byte[] data = ("\ufeffpassword=fake-only-unicode").getBytes(charset);
+            byte[] data = ("\ufeffpassword: fake-only-unicode").getBytes(charset);
             Report r = new JarScanner().scan(archive(Map.of("application.yml", data)));
             assertTrue(r.complete());
             assertEquals(Set.of("SECRET_ASSIGNMENT"), rules(r));
