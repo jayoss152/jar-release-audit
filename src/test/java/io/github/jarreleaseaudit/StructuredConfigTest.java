@@ -46,6 +46,13 @@ class StructuredConfigTest {
         assertFalse(CredentialValues.properties("# password=ignored\n! token=ignored\npassword=${PASSWORD}\nsecret="));
         assertThrows(java.io.IOException.class, () -> CredentialValues.properties("password=\\uZZZZ"));
     }
+    @Test void extensionlessPrivateHeadersAreDetectedWithoutBinaryStringFalsePositives() throws Exception {
+        var r = new JarScanner().scan(jar(temp, Map.of("material", bytes("\ufeff  -----BEGIN PRIVATE KEY-----\nSYNTHETIC-NOT-A-KEY"))));
+        assertEquals("PRIVATE_KEY", r.findings().get(0).rule());
+        assertFalse(Main.json(r).contains("SYNTHETIC-NOT-A-KEY"));
+        assertTrue(new JarScanner().scan(jar(temp, Map.of("binary.dat", bytes("prefix -----BEGIN PRIVATE KEY-----")))).findings().isEmpty());
+        assertTrue(new JarScanner().scan(jar(temp, Map.of("certificate", bytes("-----BEGIN CERTIFICATE-----\nsynthetic")))).findings().isEmpty());
+    }
     @Test void yamlCredentialBlocksRespectIndentationAndComments() throws Exception {
         assertTrue(YamlCredentials.inspect("service:\n  password: |-\n    synthetic-value\nother: safe"));
         assertTrue(YamlCredentials.inspect("password: >+\n  #literal-block-value\n"));

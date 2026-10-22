@@ -92,6 +92,9 @@ public final class JarScanner {
             state.add(MEDIUM, "SOURCE_FILE", name, "Source code is packaged in the release; exclude it unless intentional.");
         if (SENSITIVE.matcher(lower).find())
             state.add(HIGH, "SENSITIVE_FILE", name, "Potential credential or keystore file; review and exclude private material.");
+        boolean privateHeader = privatePemHeader(bytes);
+        if (privateHeader) state.add(HIGH, "PRIVATE_KEY", name,
+                "Private key header found regardless of filename; remove it and rotate any real exposed key.");
         if (lower.endsWith(".class")) {
             Set<String> debug;
             try { debug = ClassMetadata.debugAttributes(bytes); }
@@ -103,7 +106,7 @@ public final class JarScanner {
             String text;
             try { text = ResourceText.decode(bytes); }
             catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "Text encoding is malformed or unsupported."); }
-            if (PRIVATE_KEY.matcher(text).find())
+            if (!privateHeader && PRIVATE_KEY.matcher(text).find())
                 state.add(HIGH, "PRIVATE_KEY", name, "Private key marker found; remove it and rotate any real exposed key.");
             boolean structuredSecret = false;
             if (lower.endsWith(".json")) {
@@ -216,6 +219,12 @@ public final class JarScanner {
     private static boolean zipMagic(byte[] b) {
         return b.length >= 4 && b[0] == 'P' && b[1] == 'K'
                 && ((b[2] == 3 && b[3] == 4) || (b[2] == 5 && b[3] == 6) || (b[2] == 7 && b[3] == 8));
+    }
+
+    private static boolean privatePemHeader(byte[] bytes) {
+        int start = bytes.length >= 3 && (bytes[0] & 255) == 0xef && (bytes[1] & 255) == 0xbb && (bytes[2] & 255) == 0xbf ? 3 : 0;
+        String prefix = new String(bytes, start, Math.min(bytes.length - start, 256), StandardCharsets.US_ASCII).stripLeading();
+        return PRIVATE_KEY.matcher(prefix).lookingAt();
     }
 
 

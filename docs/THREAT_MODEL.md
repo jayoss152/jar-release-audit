@@ -17,6 +17,10 @@ potentially confidential because names can themselves contain private informatio
 
 ## Covered evidence
 
+Private PEM headers at the start of a resource (optional UTF-8 BOM/whitespace)
+are recognized regardless of extension. This is header evidence, not key validity
+checking; arbitrary binary constant strings away from the start are not searched.
+
 
 * Source extensions: Java, Kotlin (including scripts), Scala and Groovy.
 * Actual class attributes: SourceFile, SourceDebugExtension, LineNumberTable,
