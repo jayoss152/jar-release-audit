@@ -73,6 +73,10 @@ XML credential elements and `entry`/`property` key/name/value forms use a stream
 parser with DTDs, XInclude and external entities disabled. XML limits are 1 MiB,
 32 levels and 10,000 elements. Unsupported/malformed XML is incomplete; parsing
 never reads an external document or emits raw parser errors.
+Java Properties parsing honors escaped keys, continuations, whitespace separators
+and full-line comments. Every assignment is checked even when overwritten later.
+Quotes, `null`, `~` and an inline `#` are literal Properties values, not YAML
+null/comment syntax. A malformed escape or more than 1 MiB is incomplete.
 
 Absolute/drive-qualified paths, traversal segments, control/format characters and
 literal nested-archive delimiters in entry names yield `PATH_INVALID` and an

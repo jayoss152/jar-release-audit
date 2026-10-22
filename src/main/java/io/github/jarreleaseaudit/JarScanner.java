@@ -112,8 +112,11 @@ public final class JarScanner {
             } else if (lower.endsWith(".xml")) {
                 try { structuredSecret = XmlCredentials.inspect(text); }
                 catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "XML resource is malformed, unsupported or exceeds parser limits."); }
+            } else if (lower.endsWith(".properties")) {
+                try { structuredSecret = CredentialValues.properties(text); }
+                catch (IOException e) { throw new ScanProblem(INVALID_TEXT, "Properties resource is malformed or exceeds parser limits."); }
             }
-            var matcher = ASSIGNMENT.matcher(lower.endsWith(".json") || lower.endsWith(".xml") ? "" : text);
+            var matcher = ASSIGNMENT.matcher(lower.endsWith(".json") || lower.endsWith(".xml") || lower.endsWith(".properties") ? "" : text);
             while (structuredSecret || matcher.find()) {
                 if (structuredSecret || literalValue(matcher.group(1))) {
                     state.add(HIGH, "SECRET_ASSIGNMENT", name,

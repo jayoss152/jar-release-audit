@@ -39,4 +39,11 @@ class StructuredConfigTest {
         assertThrows(java.io.IOException.class, () -> XmlCredentials.inspect("<!DOCTYPE x [<!ENTITY ext SYSTEM 'http://127.0.0.1:9/forbidden'>]><x>&ext;</x>"));
         assertFalse(new JarScanner().scan(jar(temp, Map.of("bad.xml", bytes("<unclosed>")))).complete());
     }
+    @Test void propertiesEscapesContinuationsCommentsAndOverwrittenValuesAreHandled() throws Exception {
+        for (String text : new String[] {"pass\\u0077ord=synthetic", "password syn\\\n thetic", "password=#literal",
+                "password=synthetic\npassword=${PASSWORD}"})
+            assertTrue(CredentialValues.properties(text));
+        assertFalse(CredentialValues.properties("# password=ignored\n! token=ignored\npassword=${PASSWORD}\nsecret="));
+        assertThrows(java.io.IOException.class, () -> CredentialValues.properties("password=\\uZZZZ"));
+    }
 }
